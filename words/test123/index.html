@@ -3,179 +3,60 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spatial Walk — Multiplayer</title>
+<title>boblox | hussrooms</title>
 <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
 <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 <style>
-  html, body {
-    margin: 0; height: 100%; background: #0d0a05;
-    overflow: hidden; font-family: system-ui, sans-serif; color: #fff5d2;
-  }
+  html, body { margin: 0; height: 100%; background: #0d0a05; overflow: hidden; font-family: system-ui, sans-serif; color: #fff5d2; }
   #stage { position: fixed; inset: 0; cursor: pointer; }
   canvas { display: block; width: 100%; height: 100%; }
-  #hint {
-    position: absolute; right: 14px; bottom: 12px;
-    color: rgba(255,245,210,0.55); font-size: 11px;
-    letter-spacing: .04em; pointer-events: none; user-select: none;
-    text-align: right;
-  }
-
-  /* ---------- HUD ---------- */
-  #hud {
-    position: absolute; top: 14px; left: 14px; z-index: 5;
-    pointer-events: none; user-select: none;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  }
+  #hint { position: absolute; right: 14px; bottom: 12px; color: rgba(255,245,210,0.55); font-size: 11px; letter-spacing: .04em; pointer-events: none; user-select: none; text-align: right; }
+  #hud { position: absolute; top: 14px; left: 14px; z-index: 5; pointer-events: none; user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
   #hud-name { font-size: 16px; color: #fff5d2; letter-spacing: .05em; font-weight: 600; }
-  #hud-title {
-    font-size: 11px; color: #d8c98a; opacity: .7;
-    letter-spacing: .1em; text-transform: uppercase; margin-top: 2px;
-  }
+  #hud-title { font-size: 11px; color: #d8c98a; opacity: .7; letter-spacing: .1em; text-transform: uppercase; margin-top: 2px; }
   #hud-status { font-size: 11px; color: rgba(255,245,210,.5); margin-top: 6px; letter-spacing: .08em; }
 
-  /* ---------- Chat ---------- */
-  #chat-panel {
-    position: absolute; left: 14px; bottom: 14px; width: min(340px, 42vw);
-    max-height: 240px; z-index: 8;
-    display: flex; flex-direction: column;
-    pointer-events: none;
-  }
-  #chat-messages {
-    overflow-y: auto; flex: 1;
-    display: flex; flex-direction: column; gap: 2px;
-    padding: 8px; background: rgba(13,10,5,0.72);
-    border-radius: 6px 6px 0 0;
-    font-size: 12px; line-height: 1.4;
-    min-height: 50px; max-height: 190px;
-    scrollbar-width: thin; scrollbar-color: #3a3320 transparent;
-    pointer-events: auto;
-  }
+  #chat-panel { position: absolute; left: 14px; bottom: 14px; width: min(340px, 42vw); max-height: 240px; z-index: 8; display: flex; flex-direction: column; pointer-events: none; }
+  #chat-messages { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 8px; background: rgba(13,10,5,0.72); border-radius: 6px 6px 0 0; font-size: 12px; line-height: 1.4; min-height: 50px; max-height: 190px; scrollbar-width: thin; scrollbar-color: #3a3320 transparent; pointer-events: auto; }
   #chat-messages::-webkit-scrollbar { width: 6px; }
   #chat-messages::-webkit-scrollbar-thumb { background: #3a3320; border-radius: 3px; }
   .chat-line { color: #fff5d2; word-wrap: break-word; }
   .chat-line .who { color: #e0c86a; font-weight: 600; }
-  .chat-line .title {
-    color: #8a7430; font-size: 9px; text-transform: uppercase;
-    margin-left: 4px; letter-spacing: .06em;
-  }
+  .chat-line .title { color: #8a7430; font-size: 9px; text-transform: uppercase; margin-left: 4px; letter-spacing: .06em; }
   .chat-line.system { color: #d8c98a; font-style: italic; opacity: 0.75; }
   .chat-line.admin { color: #ff9955; }
-  #chat-input {
-    width: 100%; box-sizing: border-box;
-    background: rgba(34,28,14,0.92);
-    border: 1px solid #3a3320; color: #fff5d2;
-    padding: 8px 10px; font-family: inherit; font-size: 12px;
-    border-radius: 0 0 6px 6px; outline: none;
-    pointer-events: auto;
-  }
+  #chat-input { width: 100%; box-sizing: border-box; background: rgba(34,28,14,0.92); border: 1px solid #3a3320; color: #fff5d2; padding: 8px 10px; font-family: inherit; font-size: 12px; border-radius: 0 0 6px 6px; outline: none; pointer-events: auto; }
   #chat-input:focus { border-color: #8a7430; }
   #chat-input:disabled { opacity: 0.35; }
 
-  /* ---------- Admin Panel ---------- */
-  #admin-panel {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(13,10,5,0.97);
-    border: 1px solid #8a7430; border-radius: 8px;
-    padding: 18px 20px; z-index: 20; min-width: 280px;
-    display: none; pointer-events: auto;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
-  }
+  #admin-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(13,10,5,0.97); border: 1px solid #8a7430; border-radius: 8px; padding: 18px 20px; z-index: 20; min-width: 280px; display: none; pointer-events: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.7); }
   #admin-panel.open { display: block; }
-  #admin-panel .title {
-    font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase;
-    color: #e0c86a; margin-bottom: 14px; text-align: center;
-    padding-bottom: 10px; border-bottom: 1px solid #3a3320;
-  }
-  #admin-panel button {
-    display: block; width: 100%; background: #221c0e;
-    border: 1px solid #3a3320; color: #fff5d2;
-    padding: 9px 12px; margin-bottom: 6px; border-radius: 4px;
-    cursor: pointer; font-family: inherit; font-size: 12px;
-    text-align: left; transition: background 0.15s, border-color 0.15s;
-  }
+  #admin-panel .title { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #e0c86a; margin-bottom: 14px; text-align: center; padding-bottom: 10px; border-bottom: 1px solid #3a3320; }
+  #admin-panel button { display: block; width: 100%; background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 9px 12px; margin-bottom: 6px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; text-align: left; transition: background 0.15s, border-color 0.15s; }
   #admin-panel button:hover { background: #2f2714; border-color: #8a7430; }
   #admin-panel button.close { margin-top: 10px; background: #2a1a0f; border-color: #5a3515; color: #ff9955; }
   #admin-panel button.close:hover { background: #3a2215; }
 
-  /* ---------- Loading screen ---------- */
-  #loader {
-    position: fixed; inset: 0; background: #0d0a05;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 10; transition: opacity 0.6s ease;
-  }
+  #loader { position: fixed; inset: 0; background: #0d0a05; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.6s ease; }
   #loader.hidden { opacity: 0; pointer-events: none; }
-  #loader-title {
-    font-size: 22px; letter-spacing: .12em; text-transform: uppercase;
-    color: #d8c98a; margin-bottom: 18px; opacity: 0.85;
-  }
-  #bar-track {
-    width: min(420px, 70vw); height: 10px; background: #221c0e;
-    border: 1px solid #3a3320; border-radius: 4px; overflow: hidden;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
-  }
-  #bar-fill {
-    height: 100%; width: 0%;
-    background: linear-gradient(90deg, #8a7430, #e0c86a);
-    box-shadow: 0 0 12px rgba(224,200,106,0.4);
-    transition: width 0.15s linear;
-  }
-  #loader-text {
-    margin-top: 14px; font-size: 12px; letter-spacing: .08em;
-    color: rgba(216,201,138,0.7); min-height: 16px; text-align: center;
-  }
+  #loader-title { font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: #d8c98a; margin-bottom: 18px; opacity: 0.85; }
+  #bar-track { width: min(420px, 70vw); height: 10px; background: #221c0e; border: 1px solid #3a3320; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
+  #bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #8a7430, #e0c86a); box-shadow: 0 0 12px rgba(224,200,106,0.4); transition: width 0.15s linear; }
+  #loader-text { margin-top: 14px; font-size: 12px; letter-spacing: .08em; color: rgba(216,201,138,0.7); min-height: 16px; text-align: center; }
 
-  /* ---------- Login screen ---------- */
-  #login {
-    position: fixed; inset: 0; background: #0d0a05;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 10; padding: 20px; overflow-y: auto;
-    transition: opacity 0.5s ease;
-  }
+  #login { position: fixed; inset: 0; background: #0d0a05; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; padding: 20px; overflow-y: auto; transition: opacity 0.5s ease; }
   #login.hidden { opacity: 0; pointer-events: none; }
-  #login h2 {
-    font-size: 20px; letter-spacing: .15em; text-transform: uppercase;
-    color: #d8c98a; margin: 0 0 24px; font-weight: normal;
-  }
-  #login .or {
-    font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
-    color: rgba(216,201,138,0.4); margin: 14px 0 16px;
-  }
-  #user-list {
-    display: flex; flex-direction: column; gap: 8px;
-    width: min(380px, 92vw); max-height: 45vh; overflow-y: auto;
-    margin-bottom: 8px; padding: 4px;
-  }
-  .user-btn {
-    background: #221c0e; border: 1px solid #3a3320; color: #fff5d2;
-    padding: 14px 18px; border-radius: 6px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    font-family: inherit; font-size: 15px; text-align: left;
-    transition: background 0.15s, border-color 0.15s;
-  }
+  #login h2 { font-size: 20px; letter-spacing: .15em; text-transform: uppercase; color: #d8c98a; margin: 0 0 24px; font-weight: normal; }
+  #login .or { font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: rgba(216,201,138,0.4); margin: 14px 0 16px; }
+  #user-list { display: flex; flex-direction: column; gap: 8px; width: min(380px, 92vw); max-height: 45vh; overflow-y: auto; margin-bottom: 8px; padding: 4px; }
+  .user-btn { background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 14px 18px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-family: inherit; font-size: 15px; text-align: left; transition: background 0.15s, border-color 0.15s; }
   .user-btn:hover { background: #2f2714; border-color: #8a7430; }
   .user-nick { font-weight: 600; }
-  .user-title {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
-    color: #d8c98a; opacity: 0.7;
-  }
-  #user-empty {
-    opacity: 0.45; font-size: 13px; text-align: center;
-    padding: 18px 0; font-style: italic;
-  }
-  #new-nick {
-    background: #1a1509; border: 1px solid #3a3320; color: #fff5d2;
-    padding: 12px 16px; border-radius: 6px; font-family: inherit;
-    font-size: 14px; width: min(380px, 92vw); margin-bottom: 10px;
-    outline: none; box-sizing: border-box;
-  }
+  .user-title { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #d8c98a; opacity: 0.7; }
+  #user-empty { opacity: 0.45; font-size: 13px; text-align: center; padding: 18px 0; font-style: italic; }
+  #new-nick { background: #1a1509; border: 1px solid #3a3320; color: #fff5d2; padding: 12px 16px; border-radius: 6px; font-family: inherit; font-size: 14px; width: min(380px, 92vw); margin-bottom: 10px; outline: none; box-sizing: border-box; }
   #new-nick:focus { border-color: #8a7430; }
-  #new-btn {
-    background: #8a7430; border: none; color: #0d0a05;
-    padding: 12px 28px; border-radius: 6px; font-family: inherit;
-    font-size: 12px; font-weight: 700; letter-spacing: .12em;
-    text-transform: uppercase; cursor: pointer; transition: background 0.15s;
-  }
+  #new-btn { background: #8a7430; border: none; color: #0d0a05; padding: 12px 28px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: background 0.15s; }
   #new-btn:hover { background: #b09640; }
 </style>
 </head>
@@ -266,7 +147,7 @@ if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load f
 setLoad(15, 'loading loaders…');
 await yieldFrame();
 
-let _GL = null, _FL = null;
+let _GL = null, _FL = null, _SU = null;
 try { const m = await _ta([
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
   'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
@@ -277,6 +158,11 @@ try { const m = await _ta([
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
   'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
 ]); if (m) _FL = m.FBXLoader; } catch (e) {}
+setLoad(28, 'loading cloner…');
+await yieldFrame();
+try { const m = await _ta([
+  'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
 setLoad(30, 'building scene…');
 await yieldFrame();
 
@@ -478,6 +364,12 @@ let vRig = null, dRig = null;
 let vMix = null, dMix = null;
 let localLabelSprite = null;
 
+/* Loaded player model template — used for cloning to remote players */
+let playerModelTemplate = null;
+let playerModelAnimations = [];
+let playerModelIdleClip = null;
+let playerModelHeight = 1.85;
+
 function buildVRig() {
   const root = new _T.Group();
   const sk = new _T.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
@@ -521,7 +413,7 @@ dRig = buildDRig(); drifterVis.add(dRig.root);
 /* ============================================================
    NAME LABELS
    ============================================================ */
-function makeLabel(nick, title, color) {
+function makeLabel(nick, title, color, isHost) {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 128;
   const ctx = c.getContext('2d');
@@ -532,16 +424,17 @@ function makeLabel(nick, title, color) {
 
   ctx.fillStyle = 'rgba(13, 10, 5, 0.82)';
   ctx.fillRect(0, boxY, c.width, boxH);
-  ctx.strokeStyle = 'rgba(224, 200, 106, 0.7)';
+  ctx.strokeStyle = isHost ? 'rgba(255, 153, 85, 0.85)' : 'rgba(224, 200, 106, 0.7)';
   ctx.lineWidth = 2;
   ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
+  const displayName = isHost ? '♛ ' + nick : nick;
   ctx.font = 'bold 38px system-ui, sans-serif';
   ctx.fillStyle = color || '#fff5d2';
-  ctx.fillText(nick, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
+  ctx.fillText(displayName, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
 
   if (hasTitle) {
     ctx.font = '22px system-ui, sans-serif';
@@ -551,11 +444,49 @@ function makeLabel(nick, title, color) {
 
   const tex = new _T.CanvasTexture(c);
   tex.colorSpace = _T.SRGBColorSpace;
-  const mat = new _T.SpriteMaterial({ map: tex, transparent: true });
+  const mat = new _T.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
   const sprite = new _T.Sprite(mat);
   sprite.scale.set(2.2, 0.55, 1);
   sprite.position.y = 2.4;
+  sprite.renderOrder = 999;
   return sprite;
+}
+
+/* ============================================================
+   MODEL CLONING HELPERS
+   ============================================================ */
+function cloneModel(source) {
+  if (!source) return null;
+  if (_SU) {
+    try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
+  }
+  // Fallback: deep clone — works for non-skinned static models
+  try {
+    const isSkinned = (() => { let s = false; source.traverse(o => { if (o.isSkinnedMesh) s = true; }); return s; })();
+    if (!isSkinned) return source.clone(true);
+  } catch (e) { console.warn('clone fallback failed', e); }
+  return null;
+}
+
+function tintClone(obj, hue) {
+  const col = new _T.Color().setHSL(hue, 0.35, 0.88);
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+    if (Array.isArray(o.material)) {
+      o.material = o.material.map(m => {
+        if (!m) return m;
+        const c = m.clone();
+        if (c.color) c.color.multiply(col);
+        return c;
+      });
+    } else if (o.material) {
+      const c = o.material.clone();
+      if (c.color) c.color.multiply(col);
+      o.material = c;
+    }
+  });
 }
 
 /* ============================================================
@@ -591,7 +522,7 @@ async function firstModel(paths) {
     try {
       if (ext === 'fbx' && _FL) return { object: await new _FL().loadAsync(url), animations: [] };
       if ((ext === 'glb' || ext === 'gltf') && _GL) {
-        const g = await new _GL().loadAsync(url);
+        const g = await _GL.loadAsync(url);
         return { object: g.scene, animations: g.animations || [] };
       }
     } catch (e) {}
@@ -645,12 +576,14 @@ async function loadAllAssets() {
   ]);
   setLoad(84, 'applying figure…'); await yieldFrame();
   if (vM) {
-    const m = fit(vM.object, 1.85); prep(m, vT);
+    const m = fit(vM.object, playerModelHeight); prep(m, vT);
     viewerVis.remove(vRig.root); viewerVis.add(m); vRig = null;
+    playerModelTemplate = m;
+    playerModelAnimations = vM.animations || [];
     if (vM.animations.length) {
       vMix = new _T.AnimationMixer(m);
       const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
-      if (ic) vMix.clipAction(ic).play();
+      if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
     }
   }
 
@@ -829,34 +762,27 @@ document.getElementById('new-nick').addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-   MULTIPLAYER NETWORKING (host-authoritative tick model)
+   MULTIPLAYER NETWORKING
    ============================================================ */
-// ⚠️ Change this string to make a private room
-const ROOM_ID = 'spatial-walk-mp-v2';
+const ROOM_ID = 'spatial-walk-mp-v3';
 
 let peer = null;
-let role = null;               // 'host' | 'guest'
-let hostConn = null;           // guest → host
-let guests = [];               // host → [conn]
+let role = null;
+let hostConn = null;
+let guests = [];
 let myId = null;
+let hostId = null;            // peer id of the current host (for guest-side host crown)
 let netAccum = 0;
 let retryLock = false;
 
-// Host-side authoritative maps
-const allPlayers = new Map();  // peerId -> { nick, title, x, y, z, rot, spd }
+const allPlayers = new Map();      // host: peerId -> { nick,title,x,y,z,rot,spd }
+const remotePlayers = new Map();   // guest: peerId -> same shape
+const remoteAvatars = new Map();   // peerId -> { root, rig, mixer, phase }
 
-// Both sides: other players (excluding self)
-const remotePlayers = new Map();
-const remoteAvatars = new Map();
-
-// Clark (host-authoritative)
 let clarkActive = true;
 let clarkImmunity = false;
-
-// Guest-side interpolation targets
 const clarkTarget = { x: 30, y: 0, z: 30, rot: 0, spd: 0 };
 
-// Chat
 const chatHistory = [];
 const MAX_CHAT = 50;
 
@@ -884,7 +810,13 @@ function initNet() {
 
   p.on('open', (id) => {
     myId = id;
+    hostId = id;
     role = 'host';
+    allPlayers.set(myId, {
+      nick: myUser.nick, title: myUser.title,
+      x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0,
+      isHost: true,
+    });
     updateOnlineCount();
     appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
   });
@@ -943,18 +875,19 @@ function joinAsGuest() {
 function onGuest(conn) {
   guests.push(conn);
 
-  // Send snapshot of current players + Clark to newcomer
   const players = {};
   allPlayers.forEach((p, id) => { players[id] = p; });
+  // Make sure host is in there with up-to-date position
   players[myId] = {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? WALK_SPEED : 0,
+    spd: holding ? WALK_SPEED : 0, isHost: true,
   };
 
   try {
     conn.send({
       type: 'tick',
+      hostId: myId,
       clark: {
         x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
         spd: Math.hypot(dVel.x, dVel.z),
@@ -964,7 +897,6 @@ function onGuest(conn) {
     });
   } catch (e) {}
 
-  // Send chat history
   chatHistory.forEach(m => {
     try { conn.send({ type: 'chat', ...m }); } catch (e) {}
   });
@@ -974,6 +906,7 @@ function onGuest(conn) {
   const drop = () => {
     guests = guests.filter(g => g !== conn);
     allPlayers.delete(conn.peer);
+    remotePlayers.delete(conn.peer);
     removeRemotePlayer(conn.peer);
     updateOnlineCount();
   };
@@ -987,19 +920,23 @@ function handleFromGuest(msg, conn) {
   if (!msg || !msg.type) return;
 
   if (msg.type === 'update') {
+    const data = {
+      nick: msg.nick || 'Guest',
+      title: msg.title || 'Guest',
+      x: msg.x, y: msg.y, z: msg.z, rot: msg.rot,
+      spd: msg.spd, isHost: false,
+    };
     const prev = allPlayers.get(conn.peer);
     if (!prev) {
-      allPlayers.set(conn.peer, {
-        nick: msg.nick || 'Guest', title: msg.title || 'Guest',
-        x: msg.x, y: msg.y, z: msg.z, rot: msg.rot, spd: msg.spd,
-      });
-      ensureRemoteAvatar(conn.peer, allPlayers.get(conn.peer));
+      allPlayers.set(conn.peer, data);
+      remotePlayers.set(conn.peer, data);      // ← FIX: keep remotePlayers in sync on host too
+      ensureRemoteAvatar(conn.peer, data);
       updateOnlineCount();
     } else {
-      prev.x = msg.x; prev.y = msg.y; prev.z = msg.z;
-      prev.rot = msg.rot; prev.spd = msg.spd;
-      prev.nick = msg.nick || prev.nick;
-      prev.title = msg.title || prev.title;
+      Object.assign(prev, data);
+      const rp = remotePlayers.get(conn.peer);
+      if (rp) Object.assign(rp, data);
+      else remotePlayers.set(conn.peer, data);
     }
   } else if (msg.type === 'chat') {
     const cm = { nick: msg.nick, title: msg.title, text: msg.text };
@@ -1014,6 +951,8 @@ function handleFromHost(msg) {
   if (!msg || !msg.type) return;
 
   if (msg.type === 'tick') {
+    if (msg.hostId) hostId = msg.hostId;
+
     if (msg.clark) {
       clarkActive = !!msg.clark.active;
       clarkImmunity = !!msg.clark.immunity;
@@ -1034,11 +973,9 @@ function handleFromHost(msg) {
           entry = { ...p };
           remotePlayers.set(id, entry);
         } else {
-          entry.x = p.x; entry.y = p.y; entry.z = p.z;
-          entry.rot = p.rot; entry.spd = p.spd;
-          entry.nick = p.nick; entry.title = p.title;
+          Object.assign(entry, p);
         }
-        ensureRemoteAvatar(id, remotePlayers.get(id));
+        ensureRemoteAvatar(id, entry);
       });
 
       remotePlayers.forEach((_, id) => {
@@ -1073,7 +1010,7 @@ function sendHostTick() {
   allPlayers.set(myId, {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? WALK_SPEED : 0,
+    spd: holding ? WALK_SPEED : 0, isHost: true,
   });
 
   const players = {};
@@ -1081,6 +1018,7 @@ function sendHostTick() {
 
   const msg = {
     type: 'tick',
+    hostId: myId,
     clark: {
       x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
       spd: Math.hypot(dVel.x, dVel.z),
@@ -1144,43 +1082,53 @@ function hashHue(id) {
 function ensureRemoteAvatar(id, data) {
   if (remoteAvatars.has(id)) return;
 
-  const rig = buildVRig();
-
   const hue = hashHue(id);
-  rig.root.traverse(o => {
-    if (o.isMesh && o.material) {
-      o.material = o.material.clone();
-      o.material.color.setHSL(hue, 0.55, 0.55);
+  let root = null;
+  let rig = null;
+  let mixer = null;
+
+  // Try to clone the loaded player model first
+  const cloned = cloneModel(playerModelTemplate);
+  if (cloned) {
+    tintClone(cloned, hue);
+    root = new _T.Group();
+    root.add(cloned);
+    if (playerModelIdleClip) {
+      try {
+        mixer = new _T.AnimationMixer(cloned);
+        mixer.clipAction(playerModelIdleClip).play();
+      } catch (e) { mixer = null; }
     }
-  });
+  } else {
+    // Fallback: procedural rig
+    rig = buildVRig();
+    root = rig.root;
+    root.traverse(o => {
+      if (o.isMesh && o.material) {
+        o.material = o.material.clone();
+        o.material.color.setHSL(hue, 0.55, 0.55);
+      }
+    });
+  }
 
-  const label = makeLabel(data.nick, data.title, '#fff5d2');
-  rig.root.add(label);
+  const label = makeLabel(data.nick, data.title, '#fff5d2', !!data.isHost);
+  label.position.y = 2.4;
+  root.add(label);
 
-  rig.root.position.set(data.x, data.y, data.z);
-  rig.root.rotation.y = data.rot;
-  scene.add(rig.root);
+  root.position.set(data.x, data.y, data.z);
+  root.rotation.y = data.rot;
+  scene.add(root);
 
-  remoteAvatars.set(id, { root: rig.root, rig, phase: 0 });
+  remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost });
 }
 
 function removeRemotePlayer(id) {
   const av = remoteAvatars.get(id);
   if (!av) return;
+  if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
   scene.remove(av.root);
-  av.root.traverse(o => {
-    if (o.isMesh) {
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose?.();
-        o.material.dispose?.();
-      }
-      o.geometry?.dispose?.();
-    }
-    if (o.isSprite) {
-      o.material?.map?.dispose?.();
-      o.material?.dispose?.();
-    }
-  });
+  // Don't dispose materials/geometry here because cloned models share
+  // geometry with the template and maps may be shared between clones.
   remoteAvatars.delete(id);
   updateOnlineCount();
 }
@@ -1188,7 +1136,8 @@ function removeRemotePlayer(id) {
 function updateRemoteAvatars(dt) {
   const k = 1 - Math.exp(-12 * dt);
   remoteAvatars.forEach((av, id) => {
-    const p = remotePlayers.get(id);
+    // ← FIX: on host read from allPlayers, on guest from remotePlayers
+    const p = (role === 'host') ? allPlayers.get(id) : remotePlayers.get(id);
     if (!p) return;
 
     av.root.position.x += (p.x - av.root.position.x) * k;
@@ -1200,19 +1149,24 @@ function updateRemoteAvatars(dt) {
     while (dr < -Math.PI) dr += Math.PI * 2;
     av.root.rotation.y += dr * k;
 
-    if (p.spd > 0.1) {
-      av.phase += dt * 9;
-      const s = Math.sin(av.phase) * 0.85;
-      av.rig.armL.rotation.x = s;
-      av.rig.armR.rotation.x = -s;
-      av.rig.legL.rotation.x = -s;
-      av.rig.legR.rotation.x = s;
-    } else {
-      const d = Math.max(0, 1 - dt * 6);
-      av.rig.armL.rotation.x *= d;
-      av.rig.armR.rotation.x *= d;
-      av.rig.legL.rotation.x *= d;
-      av.rig.legR.rotation.x *= d;
+    if (av.mixer) av.mixer.update(dt);
+
+    // Procedural walking anim only for fallback rigs
+    if (av.rig) {
+      if (p.spd > 0.1) {
+        av.phase += dt * 9;
+        const s = Math.sin(av.phase) * 0.85;
+        av.rig.armL.rotation.x = s;
+        av.rig.armR.rotation.x = -s;
+        av.rig.legL.rotation.x = -s;
+        av.rig.legR.rotation.x = s;
+      } else {
+        const d = Math.max(0, 1 - dt * 6);
+        av.rig.armL.rotation.x *= d;
+        av.rig.armR.rotation.x *= d;
+        av.rig.legL.rotation.x *= d;
+        av.rig.legR.rotation.x *= d;
+      }
     }
   });
 }
@@ -1225,9 +1179,7 @@ function appendChat(msg) {
   if (!el) return;
 
   const div = document.createElement('div');
-  div.className = 'chat-line' +
-    (msg.system ? ' system' : '') +
-    (msg.admin ? ' admin' : '');
+  div.className = 'chat-line' + (msg.system ? ' system' : '') + (msg.admin ? ' admin' : '');
 
   if (msg.system) {
     div.textContent = '· ' + msg.text;
@@ -1243,13 +1195,11 @@ function appendChat(msg) {
       t.textContent = msg.title;
       div.appendChild(t);
     }
-
     div.appendChild(document.createTextNode(': ' + (msg.text || '')));
   }
 
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
-
   while (el.children.length > MAX_CHAT) el.removeChild(el.firstChild);
 }
 
@@ -1265,24 +1215,19 @@ function sendChat() {
   chatHistory.push(msg);
   if (chatHistory.length > MAX_CHAT) chatHistory.shift();
 
-  if (role === 'host') {
-    broadcastToGuests({ type: 'chat', ...msg });
-  } else if (hostConn && hostConn.open) {
+  if (role === 'host') broadcastToGuests({ type: 'chat', ...msg });
+  else if (hostConn && hostConn.open) {
     try { hostConn.send({ type: 'chat', ...msg }); } catch (e) {}
   }
 }
 
 document.getElementById('chat-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    sendChat();
-  } else if (e.key === 'Escape') {
-    e.target.blur();
-  }
+  if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+  else if (e.key === 'Escape') e.target.blur();
 });
 
 /* ============================================================
-   ADMIN PANEL (host only, hotkey D → E → V)
+   ADMIN PANEL
    ============================================================ */
 const adminKeys = [];
 let adminPanelOpen = false;
@@ -1309,9 +1254,7 @@ window.addEventListener('keydown', (e) => {
       adminKeys.length = 0;
       toggleAdminPanel();
     }
-  } else {
-    adminKeys.length = 0;
-  }
+  } else adminKeys.length = 0;
 });
 
 function adminAction(action) {
@@ -1369,15 +1312,13 @@ function adminAction(action) {
       });
       guests = [];
       allPlayers.clear();
-      clearAllAvatars();
       remotePlayers.clear();
+      clearAllAvatars();
       appendChat({ system: true, text: 'Admin: all guests were kicked.' });
       updateOnlineCount();
       break;
     }
-    case 'close':
-      toggleAdminPanel(false);
-      break;
+    case 'close': toggleAdminPanel(false); break;
   }
 }
 
@@ -1388,8 +1329,7 @@ function startGame(nick, title) {
   myUser = { nick, title };
   joined = true;
 
-  // Local player name tag
-  localLabelSprite = makeLabel(nick, title, '#e0c86a');
+  localLabelSprite = makeLabel(nick, title, '#e0c86a', true);
   viewerVis.add(localLabelSprite);
 
   document.getElementById('hud-name').textContent = nick;
@@ -1482,17 +1422,14 @@ function updateClarkPhysics(dt) {
 
 function hostCheckClarkCatch() {
   if (role !== 'host' || !clarkActive || clarkImmunity) return;
-
   const caught = [];
 
-  // Check self
   if (Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z) < 1.1) {
     vPos.set(0, 0, 0);
     appendChat({ system: true, text: 'Clark caught you — back to spawn.' });
     caught.push(myId);
   }
 
-  // Check guests
   allPlayers.forEach((p, id) => {
     if (id === myId) return;
     if (Math.hypot(p.x - dPos.x, p.z - dPos.z) < 1.1) {
@@ -1521,7 +1458,6 @@ function step(dt) {
   oPitch += (tPitch - oPitch) * k;
   oDist  += (tDist  - oDist)  * k;
 
-  // --- viewer movement ---
   const fx = -Math.sin(oYaw);
   const fz = -Math.cos(oYaw);
   if (holding) {
@@ -1541,7 +1477,7 @@ function step(dt) {
   }
   if (vMix) vMix.update(dt);
 
-  // --- Clark: host physics, guest interpolation ---
+  // Clark
   if (role === 'host') {
     if (clarkActive) {
       updateClarkPhysics(dt);
@@ -1557,7 +1493,6 @@ function step(dt) {
     dHeading += dr * k;
   }
 
-  // Clark visual
   drifter.visible = clarkActive;
   drifter.position.copy(dPos);
   drifter.rotation.y = dHeading;
@@ -1577,11 +1512,9 @@ function step(dt) {
   }
   if (dMix) { dMix.update(dt); dMix.timeScale = 2.2; }
 
-  // --- theme audio (personal, based on distance to Clark) ---
   const dist = Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z);
   if (themeEl && clarkActive) {
-    const chasing = dist < 38;
-    if (chasing) {
+    if (dist < 38) {
       if (themeEl.paused) themeEl.play().catch(() => {});
       const t = C(1 - (dist - 1) / 37, 0, 1);
       const targetVol = 0.05 + t * 0.95;
@@ -1595,7 +1528,6 @@ function step(dt) {
     if (themeEl.volume < 0.01) themeEl.pause();
   }
 
-  // --- camera orbit ---
   const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
   const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
 
@@ -1626,7 +1558,6 @@ function step(dt) {
   key.position.set(vPos.x + 4, 12, vPos.z + 4);
   key.target.position.copy(vPos);
 
-  // --- networking ---
   if (joined && myUser) {
     netAccum += dt;
     if (netAccum >= 0.1) {
