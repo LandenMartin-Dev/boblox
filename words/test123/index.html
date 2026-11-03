@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spatial Visualizer</title>
+<meta name="description" content="A 3D spatial visualization environment." />
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #0d0a05;
+  }
+  #app {
+    position: fixed;
+    inset: 0;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+/* ============================================================
+   ENGINE LOADING
+   ============================================================ */
+const TIMEOUT = 2600;
+const tryImp = (u) => Promise.race([
+  import(u),
+  new Promise((_, rej) => setTimeout(() => rej(new Error('t')), TIMEOUT)),
+]);
+async function tryAll(urls) {
+  for (const u of urls) {
+    try { return await tryImp(u); } catch (e) {}
+  }
+  return null;
+}
+
+const THREE_URLS = [
+  './three.module.js',
+  './lib/three.module.js',
+  'https://esm.sh/three@0.160.0/build/three.module.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+];
+
+const THREE = await tryAll(THREE_URLS);
+if (!THREE) throw new Error('engine load failed');
+
+/* ============================================================
+   ADDON LOADING
+   ============================================================ */
+const GLTF_URLS = [
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+];
+const FBX_URLS = [
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+];
+
+let GLTFLoader = null, FBXLoader = null;
+try { const m = await tryAll(GLTF_URLS); if (m) GLTFLoader = m.GLTFLoader; } catch (e) {}
+try { const m = await tryAll(FBX_URLS); if (m) FBXLoader = m.FBXLoader; } catch (e) {}
+
+/* ============================================================
+   CONSTANTS & SETUP
+   ============================================================ */
+const clamp = THREE.MathUtils.clamp;
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb9a44e);
+scene.fog = new THREE.Fog(0xb9a44e, 10, 50);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 150);
+
+/* ============================================================
+   ASSETS
+   ============================================================ */
+const ASSETS = {
+  player: {
+    models: ['assets/player.fbx', 'assets/player.glb', 'assets/player.gltf'],
+    textures: ['assets/texters/player/player', 'assets/texters/player/texture']
+  },
+  entity: {
+    models: ['assets/entaty.glb', 'assets/entaty.gltf', 'assets/entity.glb', 'assets/entity.gltf'],
+    textures: ['assets/texters/entity/entity', 'assets/texters/entity/texture']
+  }
+};
+
+/* ============================================================
+   TEXTURES
+   ============================================================ */
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return t;
+}
+
+const wallpaperTex = canvasTex(512, 512, (ctx, w, h) => {
+  ctx.fillStyle = '#c4b06a'; ctx.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 32) {
+    ctx.fillStyle = 'rgba(255,248,200,.05)'; ctx.fillRect(x, 0, 16, h);
+    ctx.fillStyle = 'rgba(60,45,12,.05)'; ctx.fillRect(x + 16, 0, 16, h);
+  }
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+  ctx.putImageData(img, 0, 0);
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * w, y = Math.random() * h, r = 20 + Math.random() * 85;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(110,82,28,${.05 + Math.random() * .1})`);
+    g.addColorStop(1, 'rgba(110,82,28,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  const bh = h * .05;
+  ctx.fillStyle = '#6e5a35'; ctx.fillRect(0, h - bh, w, bh);
+  ctx.fillStyle = 'rgba(255,240,180,.14)'; ctx.fillRect(0, h - bh, w, 2);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
+});
+
+const carpetTex = canvasTex(256, 256, (ctx, w, h) => {
+  ctx.fillStyle = '#9a8738'; ctx.fillRect(0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 44; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+  ctx.putImageData(img, 0, 0);
+  for (let i = 0; i < 900; i++) {
+    const x = Math.random() * w, y = Math.random() * h, l = 2 + Math.random() * 4, a = Math.random() * Math.PI;
+    ctx.strokeStyle = `rgba(${60 + Math.random() * 90},${55 + Math.random() * 80},${15 + Math.random() * 40},${.12 + Math.random() * .2})`;
+    ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+  }
+  for (let i = 0; i < 22; i++) {
+    const x = Math.random() * w, y = Math.random() * h, r = 12 + Math.random() * 52;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(50,38,12,${.08 + Math.random() * .14})`);
+    g.addColorStop(1, 'rgba(50,38,12,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+});
+
+const ceilingTex = canvasTex(256, 256, (ctx, w, h) => {
+  ctx.fillStyle = '#d3caa0'; ctx.fillRect(0, 0, w, h);
+  const t = w / 2;
+  for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
+    ctx.fillStyle = `rgba(${180 + Math.random() * 30},${170 + Math.random() * 30},${120 + Math.random() * 40},.22)`;
+    ctx.fillRect(tx * t + 3, ty * t + 3, t - 6, t - 6);
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = 'rgba(90,80,45,.16)';
+      ctx.beginPath();
+      ctx.arc(tx * t + 8 + Math.random() * (t - 16), ty * t + 8 + Math.random() * (t - 16), 1 + Math.random() * 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.strokeStyle = 'rgba(80,70,38,.5)'; ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, w, h);
+  ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
+});
+
+/* ============================================================
+   LIGHTS
+   ============================================================ */
+scene.add(new THREE.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
+const keyLight = new THREE.DirectionalLight(0xfff4cc, 1.35);
+keyLight.position.set(4, 12, 4); keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024); keyLight.shadow.bias = -0.0012;
+const sc = keyLight.shadow.camera;
+sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 50;
+scene.add(keyLight); scene.add(keyLight.target);
+const playerLight = new THREE.PointLight(0xffe8a8, 14, 15, 2);
+scene.add(playerLight);
+
+/* ============================================================
+   MAP GENERATION
+   ============================================================ */
+const WALL_H = 6.0;
+const WALL_T = 0.6;
+const MAP_SIZE = 120;
+const wallBoxes = [];
+
+function addWall(x, z, w, d) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, WALL_H, d),
+    new THREE.MeshStandardMaterial({ map: wallpaperTex, roughness: .95 })
+  );
+  mesh.position.set(x, WALL_H / 2, z);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  wallBoxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+}
+
+// Boundary walls
+addWall(0, -MAP_SIZE/2, MAP_SIZE, WALL_T);
+addWall(0, MAP_SIZE/2, MAP_SIZE, WALL_T);
+addWall(-MAP_SIZE/2, 0, WALL_T, MAP_SIZE);
+addWall(MAP_SIZE/2, 0, WALL_T, MAP_SIZE);
+
+// Abstract geometric maze
+for (let x = -MAP_SIZE/2 + 10; x < MAP_SIZE/2 - 10; x += 20) {
+  for (let z = -MAP_SIZE/2 + 10; z < MAP_SIZE/2 - 10; z += 20) {
+    if (Math.hypot(x, z) < 10) continue;
+    const r = Math.random();
+    if (r < 0.3) {
+      addWall(x, z, 8, 1);
+      addWall(x - 3.5, z - 3.5, 1, 8);
+    } else if (r < 0.6) {
+      addWall(x, z, 10, 1.5);
+      addWall(x, z, 1.5, 10);
+    } else if (r < 0.8) {
+      addWall(x, z, 12, 1);
+      addWall(x + 6, z + 6, 1, 12);
+    } else {
+      addWall(x-2, z-2, 2, 2);
+      addWall(x+2, z-2, 2, 2);
+      addWall(x-2, z+2, 2, 2);
+      addWall(x+2, z+2, 2, 2);
+    }
+  }
+}
+
+// Floor & Ceiling
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(MAP_SIZE * 2, MAP_SIZE * 2),
+  new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 1 })
+);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const ceil = new THREE.Mesh(
+  new THREE.PlaneGeometry(MAP_SIZE * 2, MAP_SIZE * 2),
+  new THREE.MeshStandardMaterial({ map: ceilingTex, roughness: 1, side: THREE.DoubleSide })
+);
+ceil.rotation.x = Math.PI / 2; ceil.position.y = WALL_H; ceil.receiveShadow = true; scene.add(ceil);
+
+// Ceiling lights
+const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c4 });
+for (let x = -40; x <= 40; x += 20) {
+  for (let z = -40; z <= 40; z += 20) {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), lightMat);
+    panel.rotation.x = Math.PI / 2;
+    panel.position.set(x, WALL_H - 0.02, z);
+    scene.add(panel);
+  }
+}
+
+/* ============================================================
+   CHARACTERS
+   ============================================================ */
+const mkBox = (w, h, d, mat) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = true; m.receiveShadow = true; return m;
+};
+
+const player = new THREE.Group(); scene.add(player);
+const playerVisual = new THREE.Group(); player.add(playerVisual);
+
+const pursuer = new THREE.Group(); scene.add(pursuer);
+const pursuerVisual = new THREE.Group(); pursuer.add(pursuerVisual);
+
+let playerRig = null, pursuerRig = null;
+let playerMixer = null, entityMixer = null;
+
+// Build Fallbacks
+function buildPlayerFB() {
+  const root = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0x2f6fbf, roughness: .9 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x3f6f3f, roughness: .9 });
+  const torso = mkBox(.7, .7, .36, shirt); torso.position.y = 1.05; root.add(torso);
+  const head = mkBox(.42, .42, .42, skin); head.position.y = 1.62; root.add(head);
+  
+  const limb = (x, y, w, h, d, mat) => {
+    const p = new THREE.Group(); p.position.set(x, y, 0);
+    const m = mkBox(w, h, d, mat); m.position.y = -h / 2; p.add(m); root.add(p); return p;
+  };
+  const armL = limb(-.49, 1.4, .24, .66, .24, skin), armR = limb(.49, 1.4, .24, .66, .24, skin);
+  const legL = limb(-.17, .7, .27, .7, .3, pants), legR = limb(.17, .7, .27, .7, .3, pants);
+  return { root, armL, armR, legL, legR };
+}
+
+function buildPursuerFB() {
+  const root = new THREE.Group();
+  const suit = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
+  const eyeM = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
+  
+  const legLen = 1.0;
+  const legL = new THREE.Group(); legL.position.set(-.2, 1.0, 0); root.add(legL);
+  const legLM = mkBox(.25, legLen, .25, suit); legLM.position.y = -legLen/2; legL.add(legLM);
+  const legR = new THREE.Group(); legR.position.set(.2, 1.0, 0); root.add(legR);
+  const legRM = mkBox(.25, legLen, .25, suit); legRM.position.y = -legLen/2; legR.add(legRM);
+
+  const torso = mkBox(.65, .9, .35, suit); torso.position.y = 1.5; root.add(torso);
+  const head = mkBox(.4, .4, .4, skin); head.position.y = 2.15; root.add(head);
+  
+  const eL = new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 10), eyeM); eL.position.set(-.1, 2.2, .21); root.add(eL);
+  const eR = new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 10), eyeM); eR.position.set(.1, 2.2, .21); root.add(eR);
+
+  const armL = new THREE.Group(); armL.position.set(-.4, 1.8, 0); root.add(armL);
+  const armLM = mkBox(.15, .9, .15, suit); armLM.position.y = -.45; armL.add(armLM);
+  const armR = new THREE.Group(); armR.position.set(.4, 1.8, 0); root.add(armR);
+  const armRM = mkBox(.15, .9, .15, suit); armRM.position.y = -.45; armR.add(armRM);
+  return { root, armL, armR, legL, legR };
+}
+
+playerRig = buildPlayerFB(); playerVisual.add(playerRig.root);
+pursuerRig = buildPursuerFB(); pursuerVisual.add(pursuerRig.root);
+
+/* ============================================================
+   MODEL LOADING
+   ============================================================ */
+function expandPaths(ps) {
+  const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
+  for (const p of ps) {
+    if (/\.(png|jpe?g|webp)$/i.test(p)) out.push(p);
+    else for (const x of e) out.push(p + x);
+  }
+  return out;
+}
+
+function loadFirstTex(paths) {
+  return new Promise(res => {
+    const ld = new THREE.TextureLoader(), list = expandPaths(paths);
+    let i = 0;
+    const next = () => {
+      if (i >= list.length) return res(null);
+      const u = list[i++];
+      ld.load(u, t => {
+        t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+        t.wrapS = t.wrapT = THREE.RepeatWrapping; res(t);
+      }, undefined, next);
+    };
+    next();
+  });
+}
+
+async function loadFirstModel(paths) {
+  for (const url of paths) {
+    const ext = url.split('.').pop().toLowerCase();
+    try {
+      if (ext === 'fbx' && FBXLoader) return { object: await new FBXLoader().loadAsync(url), animations: [] };
+      if ((ext === 'glb' || ext === 'gltf') && GLTFLoader) {
+        const g = await new GLTFLoader().loadAsync(url);
+        return { object: g.scene, animations: g.animations || [] };
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+function fitThin(obj, height, thin) {
+  obj.updateMatrixWorld(true);
+  let b = new THREE.Box3().setFromObject(obj), s = new THREE.Vector3(); b.getSize(s);
+  
+  if (s.y > 1e-5) { 
+    obj.scale.multiplyScalar(height / s.y); 
+    obj.updateMatrixWorld(true); 
+    b = new THREE.Box3().setFromObject(obj); 
+  }
+  if (thin && thin !== 1) { 
+    obj.scale.x *= thin; 
+    obj.scale.z *= thin; 
+    obj.updateMatrixWorld(true); 
+    b = new THREE.Box3().setFromObject(obj); 
+  }
+  
+  const c = new THREE.Vector3(); 
+  b.getCenter(c);
+  
+  obj.position.x -= c.x; 
+  obj.position.z -= c.z; 
+  obj.position.y -= b.min.y;
+  
+  return obj;
+}
+
+function prepMats(obj, fbTex) {
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) {
+      if (!m) continue;
+      if (fbTex && 'map' in m && !m.map) { m.map = fbTex; if (m.color) m.color.setHex(0xffffff); m.needsUpdate = true; }
+      if ('roughness' in m) m.roughness = Math.min(1, m.roughness ?? .9);
+    }
+  });
+}
+
+async function initModels() {
+  const [pModel, pTex] = await Promise.all([loadFirstModel(ASSETS.player.models), loadFirstTex(ASSETS.player.textures)]);
+  if (pModel) {
+    const m = fitThin(pModel.object, 1.85, 1); prepMats(m, pTex);
+    playerVisual.remove(playerRig.root); playerVisual.add(m);
+    playerRig = null;
+    if (pModel.animations.length) {
+      playerMixer = new THREE.AnimationMixer(m);
+      const ic = pModel.animations.find(c => /idle|stand|breath/i.test(c.name)) || pModel.animations[0];
+      if (ic) playerMixer.clipAction(ic).play();
+    }
+  }
+
+  const [eModel, eTex] = await Promise.all([loadFirstModel(ASSETS.entity.models), loadFirstTex(ASSETS.entity.textures)]);
+  if (eModel) {
+    const m = fitThin(eModel.object, 2.2, 1); prepMats(m, eTex);
+    pursuerVisual.remove(pursuerRig.root); pursuerVisual.add(m);
+    pursuerRig = null;
+    
+    if (eModel.animations.length) {
+      entityMixer = new THREE.AnimationMixer(m);
+      const rc = eModel.animations.find(c => /run|walk|move|sprint/i.test(c.name)) || eModel.animations[0];
+      if (rc) entityMixer.clipAction(rc).play();
+    }
+  }
+}
+
+/* ============================================================
+   STATE & PHYSICS
+   ============================================================ */
+const playerPos = new THREE.Vector3(0, 0, 0);
+const pursuerPos = new THREE.Vector3();
+const pursuerVel = new THREE.Vector3();
+let pursuerFacing = 0;
+
+const keys = Object.create(null);
+let vy = 0, onGround = true, facing = Math.PI;
+let yaw = 0, pitch = 0, camDist = 4.5;
+
+// Sprint limits
+const WALK_SPD = 6.0, SPRINT_SPD = 8.5, GRAV = 24, JUMP = 6.2;
+const P_RAD = .4, PU_RAD = .6; 
+let curSpd = WALK_SPD, sprintBlend = 0;
+
+let stamina = 100;
+let isExhausted = false;
+const MAX_STAMINA = 100;
+const DRAIN_RATE = 30;
+const REGEN_RATE = 15;
+
+let nearWalls = [], nearT = 0;
+function refreshNearWalls() {
+  const R = 15; nearWalls.length = 0;
+  for (let i = 0; i < wallBoxes.length; i++) {
+    const w = wallBoxes[i];
+    if (playerPos.x > w.minX - R && playerPos.x < w.maxX + R &&
+        playerPos.z > w.minZ - R && playerPos.z < w.maxZ + R) nearWalls.push(w);
+  }
+}
+
+function resetPursuer() {
+  let px, pz;
+  do {
+    px = (Math.random() - 0.5) * (MAP_SIZE - 20);
+    pz = (Math.random() - 0.5) * (MAP_SIZE - 20);
+  } while (Math.hypot(px - playerPos.x, pz - playerPos.z) < 30);
+
+  pursuerPos.set(px, 0, pz);
+  pursuerVel.set(0, 0, 0);
+  pursuerFacing = Math.random() * Math.PI * 2;
+  pursuer.position.copy(pursuerPos);
+}
+resetPursuer();
+
+function resolveColl(pos, rad, vel) {
+  for (let it = 0; it < 3; it++) {
+    let hit = false;
+    for (let i = 0; i < wallBoxes.length; i++) {
+      const w = wallBoxes[i];
+      if (pos.x < w.minX - rad || pos.x > w.maxX + rad ||
+          pos.z < w.minZ - rad || pos.z > w.maxZ + rad) continue;
+          
+      const cx = pos.x < w.minX ? w.minX : (pos.x > w.maxX ? w.maxX : pos.x);
+      const cz = pos.z < w.minZ ? w.minZ : (pos.z > w.maxZ ? w.maxZ : pos.z);
+      const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
+      
+      if (d2 >= rad * rad) continue;
+      hit = true;
+      
+      let nx = 0, nz = 0;
+      if (d2 > 1e-9) {
+        const d = Math.sqrt(d2), push = (rad - d) / d;
+        pos.x += dx * push; pos.z += dz * push;
+        nx = dx / d; nz = dz / d;
+      } else {
+        const dl = pos.x - w.minX, dr = w.maxX - pos.x, dt = pos.z - w.minZ, db = w.maxZ - pos.z;
+        const m = Math.min(dl, dr, dt, db);
+        if (m === dl) { pos.x = w.minX - rad; nx = -1; }
+        else if (m === dr) { pos.x = w.maxX + rad; nx = 1; }
+        else if (m === dt) { pos.z = w.minZ - rad; nz = -1; }
+        else { pos.z = w.maxZ + rad; nz = 1; }
+      }
+
+      if (vel) {
+        const dot = vel.x * nx + vel.z * nz;
+        if (dot < 0) {
+          vel.x -= dot * nx;
+          vel.z -= dot * nz;
+          vel.x *= 0.99;
+          vel.z *= 0.99;
+        }
+      }
+    }
+    if (!hit) break;
+  }
+}
+
+function moveWithCollision(pos, dx, dz, rad, vel = null) {
+  const dist = Math.hypot(dx, dz);
+  const steps = Math.max(1, Math.ceil(dist / 0.15)); 
+  const stepX = dx / steps;
+  const stepZ = dz / steps;
+  for (let i = 0; i < steps; i++) {
+    pos.x += stepX;
+    pos.z += stepZ;
+    resolveColl(pos, rad, vel);
+  }
+}
+
+function limitCam(target, dir, maxD) {
+  const step = .2, pad = .2;
+  for (let d = .5; d <= maxD; d += step) {
+    const px = target.x + dir.x * d, py = target.y + dir.y * d, pz = target.z + dir.z * d;
+    if (py < .22 || py > WALL_H - .18) return Math.max(d - step, .4);
+    for (let i = 0; i < nearWalls.length; i++) {
+      const w = nearWalls[i];
+      if (px > w.minX - pad && px < w.maxX + pad && pz > w.minZ - pad && pz < w.maxZ + pad) {
+        return Math.max(d - step, .4);
+      }
+    }
+  }
+  return maxD;
+}
+
+/* ============================================================
+   INPUT & CAMERA
+   ============================================================ */
+const canvas = renderer.domElement;
+let dragging = false;
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 0) {
+    if (document.pointerLockElement !== canvas) {
+      canvas.requestPointerLock();
+      dragging = true;
+    }
+  }
+});
+window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement === canvas) {
+    yaw -= e.movementX * 0.0024;
+    pitch -= e.movementY * 0.0022;
+  } else if (dragging) {
+    yaw -= e.movementX * 0.0035;
+    pitch -= e.movementY * 0.0035;
+  }
+  pitch = clamp(pitch, -1.4, 1.4);
+});
+window.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  camDist = clamp(camDist + d * 0.008, 0, 10);
+}, { passive: false });
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (onGround) { vy = JUMP; onGround = false; }
+  }
+  keys[e.code] = true;
+});
+window.addEventListener('keyup', (e) => keys[e.code] = false);
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ============================================================
+   UPDATE LOOP
+   ============================================================ */
+const clock = new THREE.Clock();
+let pWalkPhase = 0;
+let runPhase = 0;
+
+function update(dt) {
+  nearT -= dt; if (nearT <= 0) { nearT = .12; refreshNearWalls(); }
+
+  // Player Movement & Stamina
+  const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const r = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const sy = Math.sin(yaw), cy = Math.cos(yaw);
+  const mx = -sy * f + cy * r, mz = -cy * f - sy * r;
+  const len = Math.hypot(mx, mz), moving = len > 1e-4;
+  const dx = moving ? mx / len : 0, dz = moving ? mz / len : 0;
+
+  const wantsSprint = moving && (keys.ShiftLeft || keys.ShiftRight);
+  
+  if (wantsSprint && stamina > 0 && !isExhausted) {
+    stamina -= DRAIN_RATE * dt;
+    if (stamina <= 0) {
+      stamina = 0;
+      isExhausted = true;
+    }
+  } else {
+    stamina += REGEN_RATE * dt;
+    if (stamina > MAX_STAMINA) stamina = MAX_STAMINA;
+    if (isExhausted && stamina > 30) {
+      isExhausted = false;
+    }
+  }
+
+  const sprinting = wantsSprint && !isExhausted;
+  sprintBlend += (sprinting ? 1 : 0 - sprintBlend) * Math.min(1, dt * 9);
+  if (!sprinting) sprintBlend = Math.max(0, sprintBlend - dt * 6);
+  
+  const tgt = WALK_SPD + (SPRINT_SPD - WALK_SPD) * sprintBlend;
+  curSpd += (tgt - curSpd) * Math.min(1, dt * 11);
+
+  moveWithCollision(playerPos, dx * curSpd * dt, dz * curSpd * dt, P_RAD);
+
+  vy -= GRAV * dt; playerPos.y += vy * dt;
+  if (playerPos.y <= 0) { playerPos.y = 0; vy = 0; onGround = true; }
+
+  if (moving) {
+    const ta = Math.atan2(dx, dz);
+    let d = (ta - facing) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
+    facing += d * (1 - Math.exp(-14 * dt));
+    pWalkPhase += dt * (7 + sprintBlend * 10);
+  }
+  player.rotation.y = facing; player.position.copy(playerPos);
+
+  if (playerRig) {
+    const swAmp = .72 + sprintBlend * .35;
+    const sw = Math.sin(pWalkPhase) * swAmp;
+    playerRig.armL.rotation.x = sw; playerRig.armR.rotation.x = -sw;
+    playerRig.legL.rotation.x = -sw; playerRig.legR.rotation.x = sw;
+  }
+  if (playerMixer) playerMixer.update(dt);
+
+  // Entity (Extreme sliding/ice physics)
+  const pdx = playerPos.x - pursuerPos.x;
+  const pdz = playerPos.z - pursuerPos.z;
+  const pd = Math.hypot(pdx, pdz) || 1;
+  
+  const pAccel = 45; 
+  pursuerVel.x += (pdx / pd) * pAccel * dt;
+  pursuerVel.z += (pdz / pd) * pAccel * dt;
+
+  // VERY low friction for extreme sliding
+  const friction = Math.exp(-0.05 * dt); 
+  pursuerVel.x *= friction;
+  pursuerVel.z *= friction;
+
+  const maxSpd = 13; 
+  const spd = pursuerVel.length();
+  if (spd > maxSpd) { 
+    const k = maxSpd / spd; 
+    pursuerVel.x *= k; 
+    pursuerVel.z *= k; 
+  }
+
+  moveWithCollision(pursuerPos, pursuerVel.x * dt, pursuerVel.z * dt, PU_RAD, pursuerVel);
+
+  if (spd > 0.5) {
+    const ta = Math.atan2(pursuerVel.x, pursuerVel.z);
+    let d = (ta - pursuerFacing) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
+    pursuerFacing += d * (1 - Math.exp(-3.5 * dt)); // Slower turn rate = more drift
+  }
+  pursuer.rotation.y = pursuerFacing; pursuer.position.copy(pursuerPos);
+
+  // Visual drifting
+  const fwdX = Math.sin(pursuerFacing), fwdZ = Math.cos(pursuerFacing);
+  const lat = pursuerVel.x * fwdZ - pursuerVel.z * fwdX;
+  const slideAmt = clamp(-lat * 0.15, -0.9, 0.9);
+  
+  pursuerVisual.rotation.z += (slideAmt - pursuerVisual.rotation.z) * Math.min(1, dt * 6);
+  pursuerVisual.rotation.x = clamp(spd / maxSpd, 0, 1) * 0.15;
+
+  // Animation Updates
+  if (entityMixer) {
+    entityMixer.update(dt);
+    entityMixer.timeScale = Math.max(2.5, spd * 0.6); 
+  } else if (pursuerRig) {
+    runPhase += dt * (spd * 3.0 + 10); 
+    const bob = Math.abs(Math.sin(runPhase * 2)) * 0.35; 
+    pursuerVisual.position.y = bob;
+
+    const sw = Math.sin(runPhase) * 1.3; 
+    pursuerRig.legL.rotation.x = sw; pursuerRig.legR.rotation.x = -sw;
+    pursuerRig.armL.rotation.x = -sw * 1.1; pursuerRig.armR.rotation.x = sw * 1.1;
+  }
+
+  // Catch check
+  const distToPlayer = Math.hypot(playerPos.x - pursuerPos.x, playerPos.z - pursuerPos.z);
+  if (distToPlayer < 1.0) {
+    playerPos.set(0, 0, 0);
+    resetPursuer();
+    stamina = 100; 
+    isExhausted = false;
+  }
+
+  // Camera
+  const head = new THREE.Vector3(playerPos.x, playerPos.y + 1.66, playerPos.z);
+  const target = new THREE.Vector3(playerPos.x, playerPos.y + 1.25, playerPos.z);
+  
+  const t = clamp((2.4 - camDist) / 1.6, 0, 1);
+  const ease = t * t * (3 - 2 * t);
+  
+  const orbDir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize();
+  
+  let od = Math.max(camDist, 0.6);
+  od = limitCam(target, orbDir, od);
+  const desiredPos = target.clone().addScaledVector(orbDir, od);
+  
+  if (desiredPos.y < 0.22) desiredPos.y = 0.22;
+  
+  camera.position.lerpVectors(desiredPos, head, ease);
+  
+  const m3 = new THREE.Matrix4().lookAt(camera.position, target, new THREE.Vector3(0, 1, 0));
+  const q3 = new THREE.Quaternion().setFromRotationMatrix(m3);
+  
+  const e1 = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+  const q1 = new THREE.Quaternion().setFromEuler(e1);
+  
+  camera.quaternion.copy(q3).slerp(q1, ease);
+  
+  playerVisual.visible = ease < 0.5;
+
+  playerLight.position.set(playerPos.x, playerPos.y + 1.9, playerPos.z);
+  keyLight.position.set(playerPos.x + 4, 12, playerPos.z + 4);
+  keyLight.target.position.copy(playerPos);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  renderer.render(scene, camera);
+}
+
+// Boot: start the loop immediately, swap in models when they finish loading.
+animate();
+initModels().catch(() => {});
+</script>
+</body>
+</html>

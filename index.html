@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Boblox</title>
+<style>
+  /* ============ THEME (muted orange) ============ */
+  :root {
+    --orange:    #c9752e;
+    --orange-lt: #e0a06a;
+    --orange-dk: #9a5414;
+    --bg:        #121213;
+    --panel:     #1b1c1e;
+    --panel-2:   #25262a;
+    --line:      #313338;
+    --text:      #f1f1f2;
+    --muted:     #9a9fa5;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html, body { min-height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Builder Sans", system-ui, -apple-system, Roboto, sans-serif;
+    color: var(--text);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 520px at 12% -12%, rgba(201,117,46,.16), transparent 60%),
+      radial-gradient(900px 620px at 92% -5%,  rgba(180,100,35,.10), transparent 55%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ FLOATING BACKGROUND BLOCKS ============ */
+  .bg-blocks {
+    position: fixed; inset: 0; overflow: hidden;
+    pointer-events: none; z-index: 0;
+  }
+  .bg-blocks span {
+    position: absolute;
+    display: block;
+    border-radius: 16px;
+    background: linear-gradient(140deg, rgba(210,150,90,.85), rgba(170,100,40,.15));
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    from { transform: translateY(0) rotate(0deg); }
+    to   { transform: translateY(-130vh) rotate(260deg); }
+  }
+
+  /* ============ SHARED BITS ============ */
+  .logo-mark { width: 38px; height: 38px; display: block; flex: none; }
+
+  .brand {
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -1.2px;
+    background: linear-gradient(180deg, #e0a06a, #b9661f);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+  .brand.small h1 { font-size: 22px; letter-spacing: -.6px; }
+  .brand.small .logo-mark { width: 28px; height: 28px; }
+
+  /* ============ AUTH SCREEN ============ */
+  .auth-wrap {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: grid; place-items: center;
+    padding: 28px 20px;
+  }
+
+  .auth-card {
+    position: relative;
+    width: min(420px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 30px 28px 24px;
+    box-shadow: 0 26px 70px rgba(0,0,0,.65), 0 0 60px rgba(201,117,46,.05);
+  }
+  .auth-card::before {
+    content: "";
+    position: absolute; top: -1px; left: -1px; right: -1px; height: 4px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #a85514, #d89a5c, #a85514);
+    background-size: 200% 100%;
+    animation: slide 4s linear infinite;
+  }
+  @keyframes slide { to { background-position: 200% 0; } }
+
+  .tabs {
+    display: flex; gap: 6px;
+    background: #101112;
+    padding: 5px;
+    border-radius: 11px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .18s, color .18s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    background: linear-gradient(180deg, #d99552, #b9661f);
+    color: #201205;
+    box-shadow: 0 4px 14px rgba(201,117,46,.28);
+  }
+
+  /* ============ SAFETY WARNING ============ */
+  .safety-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 6px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1px solid rgba(201,117,46,.4);
+    background: rgba(201,117,46,.10);
+    color: var(--orange-lt);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: left;
+  }
+  .safety-note .safety-icon {
+    flex: none;
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .auth-card label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+
+  .auth-card input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: #101112;
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .auth-card input::placeholder { color: #61666c; }
+  .auth-card input:focus {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(201,117,46,.16);
+  }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border: none;
+    border-radius: 9px;
+    background: linear-gradient(180deg, #d99552, #b9661f);
+    color: #201205;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .4px;
+    cursor: pointer;
+    transition: filter .15s, transform .08s;
+  }
+  .btn-primary:hover  { filter: brightness(1.07); }
+  .btn-primary:active { transform: translateY(1px); }
+
+  .msg {
+    margin-top: 16px;
+    min-height: 18px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .msg.error { color: #ff6b5e; }
+  .msg.ok    { color: #57d18a; }
+
+  /* ============ HOME SCREEN ============ */
+  .home { position: relative; z-index: 1; min-height: 100vh; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 18px;
+    padding: 10px 20px;
+    background: rgba(20,21,23,.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .brand { justify-content: flex-start; }
+
+  .user-chip {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    background: linear-gradient(160deg, #d99552, #b35c14);
+    color: #201205;
+    font-weight: 900;
+    font-size: 16px;
+    box-shadow: 0 4px 14px rgba(201,117,46,.26);
+  }
+  #navUser { font-weight: 700; font-size: 14px; }
+
+  .btn-ghost {
+    padding: 8px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .btn-ghost:hover {
+    border-color: var(--orange);
+    color: var(--orange-lt);
+  }
+
+  .content {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 26px 22px 70px;
+  }
+
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 34px 32px;
+    background: linear-gradient(120deg, #d59a5c 0%, #b9661f 55%, #8a4810 100%);
+    box-shadow: 0 18px 44px rgba(138,72,16,.24);
+  }
+  .hero::after {
+    content: "";
+    position: absolute; right: -50px; top: -60px;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.10);
+  }
+  .hero::before {
+    content: "";
+    position: absolute; right: 90px; bottom: -90px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.07);
+  }
+  .hero h2 {
+    position: relative;
+    margin: 0 0 8px;
+    font-size: 30px;
+    letter-spacing: -.6px;
+    color: #2a1a08;
+  }
+  .hero p {
+    position: relative;
+    margin: 0 0 20px;
+    max-width: 520px;
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(42,26,8,.76);
+  }
+  .btn-hero {
+    position: relative;
+    padding: 12px 26px;
+    border: none;
+    border-radius: 10px;
+    background: #201205;
+    color: #d89a5c;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .1s, background .15s;
+  }
+  .btn-hero:hover  { background: #311c08; }
+  .btn-hero:active { transform: translateY(1px); }
+
+  .section-head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin: 34px 0 16px;
+  }
+  .section-head h3 { margin: 0; font-size: 20px; letter-spacing: -.3px; }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  .worlds {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+    gap: 16px;
+  }
+
+  .world-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    overflow: hidden;
+    transition: transform .16s, border-color .16s, box-shadow .16s;
+  }
+  .world-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--orange);
+    box-shadow: 0 14px 30px rgba(138,72,16,.22);
+  }
+
+  /* ---------- Thumbnail ---------- */
+  .thumb {
+    position: relative;
+    height: 112px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    font-size: 40px;
+    font-weight: 900;
+    color: rgba(32,18,5,.82);
+    user-select: none;
+  }
+  .thumb-initial { position: relative; z-index: 0; }
+  .thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: 1;
+  }
+
+  .world-info { padding: 11px 13px 15px; }
+  .world-info h4 {
+    margin: 0 0 3px;
+    font-size: 14px;
+    letter-spacing: -.1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .world-info p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .empty {
+    color: var(--muted);
+    font-size: 14px;
+    padding: 18px 0;
+    line-height: 1.6;
+  }
+  .empty code {
+    background: #22242a;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 12px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 720px) {
+    #navUser { display: none; }
+    .hero h2 { font-size: 23px; }
+    .hero { padding: 26px 22px; }
+    .worlds { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .thumb { height: 92px; font-size: 34px; }
+  }
+
+  /* ============ REDUCED MOTION ============ */
+  @media (prefers-reduced-motion: reduce) {
+    .bg-blocks { display: none; }
+    .bg-blocks span,
+    .auth-card::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-blocks" id="bgBlocks" aria-hidden="true"></div>
+
+<!-- ============================================================
+     AUTH SCREEN
+     ============================================================ -->
+<section class="auth-wrap" id="authScreen">
+  <div class="auth-card">
+    <div class="brand">
+      <svg class="logo-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,6 90,29 50,52 10,29" fill="#d89a5c"/>
+        <polygon points="90,29 90,71 50,94 50,52" fill="#b9661f"/>
+        <polygon points="10,29 50,52 50,94 10,71" fill="#8a4810"/>
+      </svg>
+      <h1>Boblox</h1>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Account access">
+      <button class="tab active" id="tabLogin" data-tab="login" type="button" role="tab"
+              aria-selected="true" aria-controls="loginForm">Log In</button>
+      <button class="tab" id="tabRegister" data-tab="register" type="button" role="tab"
+              aria-selected="false" aria-controls="registerForm" tabindex="-1">Sign Up</button>
+    </div>
+
+    <!-- SAFETY WARNING -->
+    <p class="safety-note" role="note">
+      <span class="safety-icon" aria-hidden="true">⚠️</span>
+      <span>Do <strong>not</strong> use your real name or a real password here.</span>
+    </p>
+
+    <!-- LOGIN -->
+    <form id="loginForm" autocomplete="on" novalidate>
+      <label for="loginUser">Username</label>
+      <input id="loginUser" type="text" placeholder="e.g. BlockyBuilder"
+             autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" />
+
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" placeholder="Your password" autocomplete="current-password" />
+
+      <button class="btn-primary" type="submit">Log In</button>
+    </form>
+
+    <!-- REGISTER -->
+    <form id="registerForm" autocomplete="on" novalidate hidden>
+      <label for="regUser">Username</label>
+      <input id="regUser" type="text" placeholder="3-20 letters, numbers, _"
+             autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" />
+
+      <label for="regPass">Password</label>
+      <input id="regPass" type="password" placeholder="At least 4 characters" autocomplete="new-password" />
+
+      <label for="regPass2">Confirm Password</label>
+      <input id="regPass2" type="password" placeholder="Repeat your password" autocomplete="new-password" />
+
+      <button class="btn-primary" type="submit">Create Account</button>
+    </form>
+
+    <div class="msg" id="authMsg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     HOME SCREEN
+     ============================================================ -->
+<section class="home" id="homeScreen" hidden>
+  <header class="topbar">
+    <div class="brand small">
+      <svg class="logo-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,6 90,29 50,52 10,29" fill="#d89a5c"/>
+        <polygon points="90,29 90,71 50,94 50,52" fill="#b9661f"/>
+        <polygon points="10,29 50,52 50,94 10,71" fill="#8a4810"/>
+      </svg>
+      <h1>Boblox</h1>
+    </div>
+
+    <div class="user-chip">
+      <div class="avatar" id="navAvatar">E</div>
+      <span id="navUser">Explorer</span>
+      <button class="btn-ghost" id="logoutBtn" type="button">Log Out</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <section class="hero" id="heroPanel">
+      <h2>Welcome to Boblox!</h2>
+      <p>Choose a world from the list below.</p>
+      <button class="btn-hero" id="okBtn" type="button">OK</button>
+    </section>
+
+    <div class="section-head">
+      <h3>Worlds</h3>
+    </div>
+
+    <div class="worlds" id="worlds"></div>
+  </main>
+</section>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     CONSTANTS
+     ============================================================ */
+  const USERS_KEY      = 'boblox.users';
+  const SESSION_KEY    = 'boblox.session';
+  const WELCOME_PREFIX = 'boblox.welcome.';
+  const WORDS_DIR      = 'words';
+  const FETCH_TIMEOUT  = 10000; // ms
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ============================================================
+     SAFE STORAGE (private mode / disabled cookies can throw)
+     ============================================================ */
+  const store = {
+    get(key) {
+      try { return window.localStorage.getItem(key); }
+      catch (err) { return null; }
+    },
+    set(key, value) {
+      try { window.localStorage.setItem(key, value); return true; }
+      catch (err) { return false; }
+    },
+    remove(key) {
+      try { window.localStorage.removeItem(key); }
+      catch (err) { /* ignore */ }
+    }
+  };
+
+  // Always returns a plain object, never a string/array/primitive.
+  function getUsers() {
+    let raw;
+    try { raw = JSON.parse(store.get(USERS_KEY)); }
+    catch (err) { raw = null; }
+
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+
+    const users = {};
+    Object.keys(raw).forEach((key) => {
+      const rec = raw[key];
+      if (rec && typeof rec === 'object' && typeof rec.password === 'string') {
+        users[key] = rec;
+      }
+    });
+    return users;
+  }
+
+  function saveUsers(users) {
+    return store.set(USERS_KEY, JSON.stringify(users));
+  }
+
+  // Demo-only FNV-1a hash. No per-user salt, not real security.
+  function hashPassword(pw) {
+    const str = 'boblox::' + pw;
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16);
+  }
+
+  /* ============================================================
+     ELEMENTS
+     ============================================================ */
+  const authScreen = $('authScreen');
+  const homeScreen = $('homeScreen');
+  const authMsg    = $('authMsg');
+  const loginForm  = $('loginForm');
+  const regForm    = $('registerForm');
+  const tabs       = [...document.querySelectorAll('.tab')];
+  const heroPanel  = $('heroPanel');
+  const worldsEl   = $('worlds');
+
+  /* ============================================================
+     AUTH MESSAGES
+     ============================================================ */
+  function setMsg(text, type) {
+    authMsg.textContent = text || '';
+    authMsg.className = 'msg' + (type ? ' ' + type : '');
+  }
+
+  /* ============================================================
+     SCREEN SWITCHING
+     ============================================================ */
+  function enterHome(username) {
+    const name = String(username || '').trim() || 'Explorer';
+    const key  = name.toLowerCase();
+
+    $('navUser').textContent   = name;
+    $('navAvatar').textContent = name.charAt(0).toUpperCase();
+
+    // Welcome banner stays hidden for this account once dismissed.
+    heroPanel.hidden = store.get(WELCOME_PREFIX + key) === '1';
+
+    authScreen.hidden = true;
+    homeScreen.hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  function showAuth() {
+    homeScreen.hidden = true;
+    authScreen.hidden = false;
+
+    loginForm.reset();
+    regForm.reset();
+
+    setActiveTab('login');
+    setMsg('');
+  }
+
+  /* ============================================================
+     TAB SWITCHING (with aria + roving tabindex + arrow keys)
+     ============================================================ */
+  function setActiveTab(name) {
+    tabs.forEach((tab) => {
+      const active = tab.dataset.tab === name;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.tabIndex = active ? 0 : -1;
+    });
+    loginForm.hidden = name !== 'login';
+    regForm.hidden   = name !== 'register';
+  }
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => {
+      setActiveTab(tab.dataset.tab === 'register' ? 'register' : 'login');
+      setMsg('');
+    });
+
+    tab.addEventListener('keydown', (e) => {
+      const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!delta) return;
+      e.preventDefault();
+      const next = tabs[(index + delta + tabs.length) % tabs.length];
+      next.focus();
+      next.click();
+    });
+  });
+
+  /* ============================================================
+     REGISTER
+     ============================================================ */
+  regForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const username = $('regUser').value.trim();
+    const pass     = $('regPass').value;
+    const pass2    = $('regPass2').value;
+
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+      return setMsg('Username must be 3-20 characters (letters, numbers, underscores).', 'error');
+    }
+    if (pass.length < 4) {
+      return setMsg('Password must be at least 4 characters.', 'error');
+    }
+    if (pass !== pass2) {
+      return setMsg('Passwords do not match.', 'error');
+    }
+
+    const users = getUsers();
+    const key   = username.toLowerCase();
+
+    if (users[key]) {
+      return setMsg('That username is already taken.', 'error');
+    }
+
+    users[key] = {
+      username: username,
+      password: hashPassword(pass),
+      created: Date.now()
+    };
+
+    if (!saveUsers(users)) {
+      return setMsg('Could not save the account: browser storage is blocked or full.', 'error');
+    }
+
+    store.set(SESSION_KEY, key);
+    regForm.reset();
+    setMsg('');
+    enterHome(username);
+  });
+
+  /* ============================================================
+     LOGIN
+     ============================================================ */
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const username = $('loginUser').value.trim();
+    const pass     = $('loginPass').value;
+
+    if (!username || !pass) {
+      return setMsg('Enter your username and password.', 'error');
+    }
+
+    const users  = getUsers();
+    const key    = username.toLowerCase();
+    const record = users[key];
+
+    if (!record) {
+      return setMsg('No Boblox account found with that username.', 'error');
+    }
+    if (record.password !== hashPassword(pass)) {
+      return setMsg('Incorrect password. Try again.', 'error');
+    }
+
+    store.set(SESSION_KEY, key);
+    loginForm.reset();
+    setMsg('');
+    enterHome(record.username || username);
+  });
+
+  /* ============================================================
+     LOG OUT
+     ============================================================ */
+  $('logoutBtn').addEventListener('click', () => {
+    store.remove(SESSION_KEY);
+    showAuth();
+    setMsg('You have been logged out.', 'ok');
+  });
+
+  /* ============================================================
+     OK BUTTON: hide banner for good
+     ============================================================ */
+  $('okBtn').addEventListener('click', () => {
+    heroPanel.hidden = true;
+    const session = store.get(SESSION_KEY);
+    if (session) store.set(WELCOME_PREFIX + session, '1');
+  });
+
+  /* ============================================================
+     URL HELPERS
+
+     Every segment is decoded first, then validated, then encoded
+     exactly once. This keeps already-encoded paths from being
+     double-encoded and blocks ".." hidden behind percent-escapes.
+     ============================================================ */
+  function decodeSegment(segment) {
+    try { return decodeURIComponent(segment); }
+    catch (err) { return segment; }
+  }
+
+  function safeSegments(path) {
+    return String(path == null ? '' : path)
+      .split('/')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map(decodeSegment)                            // decode first ...
+      .filter((s) => s && s !== '.' && s !== '..')   // ... then drop traversal
+      .map((s) => encodeURIComponent(s));            // ... then encode once
+  }
+
+  function joinUrl(...segments) {
+    return segments
+      .reduce((parts, part) => parts.concat(safeSegments(part)), [])
+      .join('/');
+  }
+
+  async function fetchJson(url) {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), FETCH_TIMEOUT) : null;
+
+    try {
+      const res = await fetch(url, {
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /* ============================================================
+     WORLD LOADER
+
+     words/pointer.json is a list of folder names.
+     Each folder may contain a config.json:
+
+       { "entrypoint": "index.html", "thumbnail": "image.png" }
+
+     entrypoint is required by spec, but if config.json is missing
+     or malformed we fall back to "index.html".
+     thumbnail may be "auto" (thumbnail.png), "None" (no image),
+     an explicit path, { "path": "..." }, or omitted (no image).
+     ============================================================ */
+  const GRADS = [
+    ['#d89a5c', '#b9661f'],
+    ['#e0b27a', '#b96a22'],
+    ['#cf8f52', '#a85514'],
+    ['#dcae74', '#b06a24'],
+    ['#c98a5c', '#8a4810'],
+    ['#d6a05e', '#b35c14'],
+    ['#d9a768', '#a85316'],
+    ['#e2b988', '#b96f1f']
+  ];
+
+  function prettify(name) {
+    return String(name)
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function normalizePointer(data) {
+    const out = [];
+    const push = (value) => {
+      if (typeof value === 'string' && value.trim()) {
+        out.push(value.trim());
+      } else if (value && typeof value === 'object' &&
+                 typeof value.name === 'string' && value.name.trim()) {
+        out.push(value.name.trim());
+      }
+    };
+
+    if (Array.isArray(data)) {
+      data.forEach(push);
+    } else if (typeof data === 'string') {
+      push(data);
+    } else if (data && typeof data === 'object') {
+      if (Array.isArray(data.words))             data.words.forEach(push);
+      else if (Array.isArray(data.interactives)) data.interactives.forEach(push);
+      else if (typeof data.pointer === 'string') push(data.pointer);
+      else if (typeof data.name === 'string')    push(data.name);
+      else Object.keys(data).forEach(push);
+    }
+
+    // Exact-match de-dupe: case-insensitive de-duping can hide real
+    // folders that only differ by case on case-sensitive servers.
+    const seen = new Set();
+    return out.filter((name) => {
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+  }
+
+  function entrypointFromConfig(cfg) {
+    let entry = cfg && typeof cfg.entrypoint === 'string' ? cfg.entrypoint.trim() : '';
+    if (!entry || entry.toLowerCase() === 'auto') entry = 'index.html';
+    return entry;
+  }
+
+  function thumbnailFromConfig(cfg, folderUrl) {
+    const thumb = cfg ? cfg.thumbnail : undefined;
+    let file = null;
+
+    if (typeof thumb === 'string') {
+      const trimmed = thumb.trim();
+      const lower   = trimmed.toLowerCase();
+      if (!trimmed || lower === 'none' || lower === 'null' || lower === 'false') return null;
+      file = (lower === 'auto') ? 'thumbnail.png' : trimmed;
+    } else if (thumb && typeof thumb === 'object' && typeof thumb.path === 'string') {
+      file = thumb.path.trim() || null;
+    }
+
+    return file ? joinUrl(folderUrl, file) : null;
+  }
+
+  // Resolve one folder into card data.
+  async function loadWorld(name) {
+    const folderUrl = joinUrl(WORDS_DIR, name);
+
+    let cfg = null;
+    try {
+      cfg = await fetchJson(joinUrl(folderUrl, 'config.json'));
+    } catch (err) {
+      cfg = null;
+    }
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) cfg = {};
+
+    return {
+      name:     name,
+      label:    prettify(name),
+      href:     joinUrl(folderUrl, entrypointFromConfig(cfg)),
+      thumbUrl: thumbnailFromConfig(cfg, folderUrl)
+    };
+  }
+
+  function buildCard(world, index) {
+    const card = document.createElement('a');
+    card.className = 'world-card';
+    card.href = world.href;
+    card.title = world.label;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const [c1, c2] = GRADS[index % GRADS.length];
+    thumb.style.background = 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
+
+    const initial = document.createElement('span');
+    initial.className = 'thumb-initial';
+    initial.textContent = (world.label.charAt(0) || '?').toUpperCase();
+    thumb.appendChild(initial);
+
+    if (world.thumbUrl) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      // If the image is missing or blocked, drop it and keep the gradient.
+      img.addEventListener('error', () => img.remove());
+      img.src = world.thumbUrl;
+      thumb.appendChild(img);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'world-info';
+
+    const h4 = document.createElement('h4');
+    h4.textContent = world.label;
+
+    const p = document.createElement('p');
+    p.textContent = world.name;
+
+    info.appendChild(h4);
+    info.appendChild(p);
+    card.appendChild(thumb);
+    card.appendChild(info);
+
+    return card;
+  }
+
+  function renderEmpty(fetchFailed) {
+    worldsEl.innerHTML = '';
+
+    const p = document.createElement('p');
+    p.className = 'empty';
+
+    if (fetchFailed) {
+      p.innerHTML = 'Could not load <code>words/pointer.json</code>.';
+      if (window.location.protocol === 'file:') {
+        p.innerHTML +=
+          ' Browsers block <code>fetch</code> on <code>file://</code> pages — serve this folder over HTTP ' +
+          '(for example <code>python -m http.server</code>) and reload.';
+      } else {
+        p.innerHTML += ' Check that the file exists and is served correctly.';
+      }
+    } else {
+      p.innerHTML =
+        'No worlds found. Add folder names to <code>words/pointer.json</code> and give each folder a ' +
+        '<code>config.json</code> with an <code>entrypoint</code>.';
+    }
+
+    worldsEl.appendChild(p);
+  }
+
+  function render(worlds) {
+    worldsEl.innerHTML = '';
+
+    const frag = document.createDocumentFragment();
+    worlds.forEach((w, i) => frag.appendChild(buildCard(w, i)));
+    worldsEl.appendChild(frag);
+  }
+
+  async function loadWorlds() {
+    let names = [];
+    let fetchFailed = false;
+
+    try {
+      names = normalizePointer(await fetchJson(joinUrl(WORDS_DIR, 'pointer.json')));
+    } catch (err) {
+      fetchFailed = true;
+      names = [];
+    }
+
+    if (!names.length) {
+      renderEmpty(fetchFailed);
+      return;
+    }
+
+    const worlds = await Promise.all(names.map(loadWorld));
+    render(worlds);
+  }
+
+  /* ============================================================
+     DECORATIVE FLOATING BLOCKS
+     ============================================================ */
+  (function buildBackground() {
+    if (window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const bg = $('bgBlocks');
+    for (let i = 0; i < 14; i++) {
+      const block = document.createElement('span');
+      const size = 24 + Math.random() * 72;
+      block.style.width  = size + 'px';
+      block.style.height = size + 'px';
+      block.style.left   = (Math.random() * 100) + '%';
+      block.style.bottom = (-140 - Math.random() * 260) + 'px';
+      block.style.opacity = (0.06 + Math.random() * 0.14).toFixed(2);
+      block.style.animationDuration = (18 + Math.random() * 22) + 's';
+      block.style.animationDelay = (-Math.random() * 34) + 's';
+      bg.appendChild(block);
+    }
+  })();
+
+  /* ============================================================
+     BOOT
+     ============================================================ */
+  (function boot() {
+    setActiveTab('login');
+
+    const users   = getUsers();
+    const session = store.get(SESSION_KEY);
+    const record  = session ? users[session] : null;
+
+    if (record) {
+      enterHome(record.username || session);
+    } else {
+      if (session) store.remove(SESSION_KEY);
+      showAuth();
+    }
+
+    loadWorlds();
+  })();
+
+})();
+</script>
+</body>
+</html>
