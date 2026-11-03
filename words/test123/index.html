@@ -14,9 +14,10 @@
   #stage { position: fixed; inset: 0; cursor: pointer; }
   canvas { display: block; width: 100%; height: 100%; }
   #hint {
-    position: absolute; left: 14px; bottom: 12px;
-    color: rgba(255,245,210,0.55); font-size: 12px;
+    position: absolute; right: 14px; bottom: 12px;
+    color: rgba(255,245,210,0.55); font-size: 11px;
     letter-spacing: .04em; pointer-events: none; user-select: none;
+    text-align: right;
   }
 
   /* ---------- HUD ---------- */
@@ -31,6 +32,71 @@
     letter-spacing: .1em; text-transform: uppercase; margin-top: 2px;
   }
   #hud-status { font-size: 11px; color: rgba(255,245,210,.5); margin-top: 6px; letter-spacing: .08em; }
+
+  /* ---------- Chat ---------- */
+  #chat-panel {
+    position: absolute; left: 14px; bottom: 14px; width: min(340px, 42vw);
+    max-height: 240px; z-index: 8;
+    display: flex; flex-direction: column;
+    pointer-events: none;
+  }
+  #chat-messages {
+    overflow-y: auto; flex: 1;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px; background: rgba(13,10,5,0.72);
+    border-radius: 6px 6px 0 0;
+    font-size: 12px; line-height: 1.4;
+    min-height: 50px; max-height: 190px;
+    scrollbar-width: thin; scrollbar-color: #3a3320 transparent;
+    pointer-events: auto;
+  }
+  #chat-messages::-webkit-scrollbar { width: 6px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #3a3320; border-radius: 3px; }
+  .chat-line { color: #fff5d2; word-wrap: break-word; }
+  .chat-line .who { color: #e0c86a; font-weight: 600; }
+  .chat-line .title {
+    color: #8a7430; font-size: 9px; text-transform: uppercase;
+    margin-left: 4px; letter-spacing: .06em;
+  }
+  .chat-line.system { color: #d8c98a; font-style: italic; opacity: 0.75; }
+  .chat-line.admin { color: #ff9955; }
+  #chat-input {
+    width: 100%; box-sizing: border-box;
+    background: rgba(34,28,14,0.92);
+    border: 1px solid #3a3320; color: #fff5d2;
+    padding: 8px 10px; font-family: inherit; font-size: 12px;
+    border-radius: 0 0 6px 6px; outline: none;
+    pointer-events: auto;
+  }
+  #chat-input:focus { border-color: #8a7430; }
+  #chat-input:disabled { opacity: 0.35; }
+
+  /* ---------- Admin Panel ---------- */
+  #admin-panel {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(13,10,5,0.97);
+    border: 1px solid #8a7430; border-radius: 8px;
+    padding: 18px 20px; z-index: 20; min-width: 280px;
+    display: none; pointer-events: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  }
+  #admin-panel.open { display: block; }
+  #admin-panel .title {
+    font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: #e0c86a; margin-bottom: 14px; text-align: center;
+    padding-bottom: 10px; border-bottom: 1px solid #3a3320;
+  }
+  #admin-panel button {
+    display: block; width: 100%; background: #221c0e;
+    border: 1px solid #3a3320; color: #fff5d2;
+    padding: 9px 12px; margin-bottom: 6px; border-radius: 4px;
+    cursor: pointer; font-family: inherit; font-size: 12px;
+    text-align: left; transition: background 0.15s, border-color 0.15s;
+  }
+  #admin-panel button:hover { background: #2f2714; border-color: #8a7430; }
+  #admin-panel button.close { margin-top: 10px; background: #2a1a0f; border-color: #5a3515; color: #ff9955; }
+  #admin-panel button.close:hover { background: #3a2215; }
 
   /* ---------- Loading screen ---------- */
   #loader {
@@ -77,7 +143,7 @@
   }
   #user-list {
     display: flex; flex-direction: column; gap: 8px;
-    width: min(380px, 92vw); max-height: 50vh; overflow-y: auto;
+    width: min(380px, 92vw); max-height: 45vh; overflow-y: auto;
     margin-bottom: 8px; padding: 4px;
   }
   .user-btn {
@@ -115,7 +181,6 @@
 </head>
 <body>
 
-<!-- Login (behind loader, revealed after loading) -->
 <div id="login">
   <h2>Identify Yourself</h2>
   <div id="user-list"></div>
@@ -124,7 +189,6 @@
   <button id="new-btn">Join as Guest</button>
 </div>
 
-<!-- Loading screen -->
 <div id="loader">
   <div id="loader-title">Preparing Space</div>
   <div id="bar-track"><div id="bar-fill"></div></div>
@@ -138,6 +202,23 @@
     <div id="hud-status">○ idle</div>
   </div>
   <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
+</div>
+
+<div id="chat-panel">
+  <div id="chat-messages"></div>
+  <input id="chat-input" placeholder="say something…  (enter to send)" maxlength="200" disabled />
+</div>
+
+<div id="admin-panel">
+  <div class="title">Admin Panel · Host Only</div>
+  <button data-act="add-clark">➕ Add Clark</button>
+  <button data-act="remove-clark">➖ Remove Clark</button>
+  <button data-act="toggle-immunity">🛡 Toggle Immunity</button>
+  <button data-act="teleport-clark">📍 Teleport Clark to Me</button>
+  <button data-act="reset-clark">🔄 Reset Clark</button>
+  <button data-act="broadcast">📢 Broadcast Message</button>
+  <button data-act="kick-all">🚪 Kick All Guests</button>
+  <button data-act="close" class="close">✕ Close</button>
 </div>
 
 <script type="module">
@@ -395,6 +476,7 @@ const drifterVis = new _T.Group(); drifter.add(drifterVis);
 
 let vRig = null, dRig = null;
 let vMix = null, dMix = null;
+let localLabelSprite = null;
 
 function buildVRig() {
   const root = new _T.Group();
@@ -435,6 +517,46 @@ function buildDRig() {
 
 vRig = buildVRig(); viewerVis.add(vRig.root);
 dRig = buildDRig(); drifterVis.add(dRig.root);
+
+/* ============================================================
+   NAME LABELS
+   ============================================================ */
+function makeLabel(nick, title, color) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+
+  const hasTitle = title && title.length > 0;
+  const boxH = hasTitle ? 88 : 56;
+  const boxY = (c.height - boxH) / 2;
+
+  ctx.fillStyle = 'rgba(13, 10, 5, 0.82)';
+  ctx.fillRect(0, boxY, c.width, boxH);
+  ctx.strokeStyle = 'rgba(224, 200, 106, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.font = 'bold 38px system-ui, sans-serif';
+  ctx.fillStyle = color || '#fff5d2';
+  ctx.fillText(nick, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
+
+  if (hasTitle) {
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(216, 201, 138, 0.85)';
+    ctx.fillText(title.toUpperCase(), c.width / 2, boxY + 62);
+  }
+
+  const tex = new _T.CanvasTexture(c);
+  tex.colorSpace = _T.SRGBColorSpace;
+  const mat = new _T.SpriteMaterial({ map: tex, transparent: true });
+  const sprite = new _T.Sprite(mat);
+  sprite.scale.set(2.2, 0.55, 1);
+  sprite.position.y = 2.4;
+  return sprite;
+}
 
 /* ============================================================
    ASSET LOADING
@@ -646,9 +768,11 @@ function resetMonster() {
 resetMonster();
 
 /* ============================================================
-   USER AUTH — boblox.users
+   AUTH — boblox.users
    ============================================================ */
 const USERS_KEY = 'boblox.users';
+let myUser = null;
+let joined = false;
 
 function loadBobloxUsers() {
   let raw;
@@ -668,9 +792,6 @@ function loadBobloxUsers() {
   }
 }
 
-let myUser = null;
-let joined = false;
-
 function showLogin() {
   const users = loadBobloxUsers();
   const list = document.getElementById('user-list');
@@ -680,7 +801,7 @@ function showLogin() {
   if (nicks.length === 0) {
     const empty = document.createElement('div');
     empty.id = 'user-empty';
-    empty.textContent = 'No users in boblox.users — try a guest name below.';
+    empty.textContent = 'No users found in boblox.users — try a guest name below.';
     list.appendChild(empty);
   } else {
     nicks.forEach(nick => {
@@ -707,52 +828,55 @@ document.getElementById('new-nick').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('new-btn').click();
 });
 
-function startGame(nick, title) {
-  myUser = { nick, title };
-  joined = true;
-
-  document.getElementById('hud-name').textContent = nick;
-  document.getElementById('hud-title').textContent = title;
-
-  const loginEl = document.getElementById('login');
-  loginEl.classList.add('hidden');
-  setTimeout(() => loginEl.remove(), 600);
-
-  initNet();
-  loop();
-}
-
 /* ============================================================
-   MULTIPLAYER NETWORKING
+   MULTIPLAYER NETWORKING (host-authoritative tick model)
    ============================================================ */
-// ⚠️ All players running this exact file share this room.
-//    Change the suffix to make a private room.
-const ROOM_ID = 'spatial-walk-public-v1';
+// ⚠️ Change this string to make a private room
+const ROOM_ID = 'spatial-walk-mp-v2';
 
 let peer = null;
-let role = null;
-let hostConn = null;
-let guests = [];
+let role = null;               // 'host' | 'guest'
+let hostConn = null;           // guest → host
+let guests = [];               // host → [conn]
 let myId = null;
 let netAccum = 0;
 let retryLock = false;
 
-const remotePlayers = new Map();   // id -> { nick, title, x, y, z, rot, spd }
-const remoteAvatars = new Map();   // id -> { root, rig, labelKey, phase }
+// Host-side authoritative maps
+const allPlayers = new Map();  // peerId -> { nick, title, x, y, z, rot, spd }
+
+// Both sides: other players (excluding self)
+const remotePlayers = new Map();
+const remoteAvatars = new Map();
+
+// Clark (host-authoritative)
+let clarkActive = true;
+let clarkImmunity = false;
+
+// Guest-side interpolation targets
+const clarkTarget = { x: 30, y: 0, z: 30, rot: 0, spd: 0 };
+
+// Chat
+const chatHistory = [];
+const MAX_CHAT = 50;
 
 function setHudStatus(text) {
   const el = document.getElementById('hud-status');
   if (el) el.textContent = text;
 }
 
-function clearRemotePlayers() {
-  remotePlayers.forEach((_, id) => removeRemotePlayer(id));
-  remotePlayers.clear();
+function updateOnlineCount() {
+  const total = (role === 'host') ? allPlayers.size : (remotePlayers.size + 1);
+  if (role === 'host') setHudStatus('● hosting · ' + total + ' online');
+  else if (role === 'guest') setHudStatus('● joined · ' + total + ' online');
+  else setHudStatus('○ idle');
 }
 
 function initNet() {
   destroyPeer();
-  clearRemotePlayers();
+  clearAllAvatars();
+  allPlayers.clear();
+  remotePlayers.clear();
   setHudStatus('○ connecting…');
 
   const p = new Peer(ROOM_ID, { debug: 0 });
@@ -761,7 +885,8 @@ function initNet() {
   p.on('open', (id) => {
     myId = id;
     role = 'host';
-    setHudStatus('● hosting · 1 online');
+    updateOnlineCount();
+    appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
   });
 
   p.on('connection', onGuest);
@@ -772,8 +897,6 @@ function initNet() {
       joinAsGuest();
     } else if (err && err.type === 'network') {
       scheduleRetry();
-    } else {
-      // Non-fatal
     }
   });
 
@@ -784,6 +907,9 @@ function initNet() {
 
 function joinAsGuest() {
   destroyPeer();
+  clearAllAvatars();
+  allPlayers.clear();
+  remotePlayers.clear();
   setHudStatus('○ joining…');
 
   const p = new Peer({ debug: 0 });
@@ -796,15 +922,15 @@ function joinAsGuest() {
 
     conn.on('open', () => {
       role = 'guest';
-      setHudStatus('● joined · 1 online');
-      // Announce ourselves immediately
-      sendState();
+      updateOnlineCount();
+      appendChat({ system: true, text: 'Joined the room as ' + myUser.nick + '.' });
+      sendGuestUpdate();
     });
 
-    conn.on('data', (msg) => handleIncoming(msg));
+    conn.on('data', handleFromHost);
 
-    conn.on('close', scheduleRetry);
-    conn.on('error', scheduleRetry);
+    conn.on('close', () => scheduleRetry());
+    conn.on('error', () => scheduleRetry());
   });
 
   p.on('error', () => scheduleRetry());
@@ -817,90 +943,176 @@ function joinAsGuest() {
 function onGuest(conn) {
   guests.push(conn);
 
-  // Send the newcomer everything we know
-  remotePlayers.forEach((pl, id) => {
-    try {
-      conn.send({
-        type: 'state', id,
-        nick: pl.nick, title: pl.title,
-        x: pl.x, y: pl.y, z: pl.z, rot: pl.rot, spd: pl.spd
-      });
-    } catch (e) {}
-  });
-  // And our own state
-  try {
-    conn.send({
-      type: 'state', id: myId,
-      nick: myUser.nick, title: myUser.title,
-      x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-      spd: holding ? WALK_SPEED : 0
-    });
-  } catch (e) {}
-
-  conn.on('data', (msg) => {
-    if (!msg || msg.type !== 'state') return;
-    handleIncoming(msg);
-    // Relay to all other guests
-    guests.forEach(g => {
-      if (g !== conn && g.open) {
-        try { g.send(msg); } catch (e) {}
-      }
-    });
-  });
-
-  conn.on('close', () => {
-    guests = guests.filter(g => g !== conn);
-    removeRemotePlayer(conn.peer);
-    updateOnlineCount();
-  });
-  conn.on('error', () => {
-    guests = guests.filter(g => g !== conn);
-    removeRemotePlayer(conn.peer);
-    updateOnlineCount();
-  });
-
-  updateOnlineCount();
-}
-
-function handleIncoming(msg) {
-  if (!msg || msg.type !== 'state') return;
-  if (msg.id === myId) return;
-
-  let p = remotePlayers.get(msg.id);
-  if (!p) {
-    p = { nick: msg.nick, title: msg.title, x: msg.x, y: msg.y, z: msg.z, rot: msg.rot, spd: msg.spd };
-    remotePlayers.set(msg.id, p);
-  } else {
-    p.nick = msg.nick; p.title = msg.title;
-    p.x = msg.x; p.y = msg.y; p.z = msg.z;
-    p.rot = msg.rot; p.spd = msg.spd;
-  }
-  ensureRemoteAvatar(msg.id, p);
-  updateOnlineCount();
-}
-
-function sendState() {
-  if (!myId || !myUser) return;
-  const msg = {
-    type: 'state', id: myId,
+  // Send snapshot of current players + Clark to newcomer
+  const players = {};
+  allPlayers.forEach((p, id) => { players[id] = p; });
+  players[myId] = {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
     spd: holding ? WALK_SPEED : 0,
   };
-  if (role === 'host') {
-    guests.forEach(g => {
-      if (g.open) { try { g.send(msg); } catch (e) {} }
+
+  try {
+    conn.send({
+      type: 'tick',
+      clark: {
+        x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
+        spd: Math.hypot(dVel.x, dVel.z),
+        active: clarkActive, immunity: clarkImmunity,
+      },
+      players,
     });
-  } else if (hostConn && hostConn.open) {
-    try { hostConn.send(msg); } catch (e) {}
+  } catch (e) {}
+
+  // Send chat history
+  chatHistory.forEach(m => {
+    try { conn.send({ type: 'chat', ...m }); } catch (e) {}
+  });
+
+  conn.on('data', (msg) => handleFromGuest(msg, conn));
+
+  const drop = () => {
+    guests = guests.filter(g => g !== conn);
+    allPlayers.delete(conn.peer);
+    removeRemotePlayer(conn.peer);
+    updateOnlineCount();
+  };
+  conn.on('close', drop);
+  conn.on('error', drop);
+
+  updateOnlineCount();
+}
+
+function handleFromGuest(msg, conn) {
+  if (!msg || !msg.type) return;
+
+  if (msg.type === 'update') {
+    const prev = allPlayers.get(conn.peer);
+    if (!prev) {
+      allPlayers.set(conn.peer, {
+        nick: msg.nick || 'Guest', title: msg.title || 'Guest',
+        x: msg.x, y: msg.y, z: msg.z, rot: msg.rot, spd: msg.spd,
+      });
+      ensureRemoteAvatar(conn.peer, allPlayers.get(conn.peer));
+      updateOnlineCount();
+    } else {
+      prev.x = msg.x; prev.y = msg.y; prev.z = msg.z;
+      prev.rot = msg.rot; prev.spd = msg.spd;
+      prev.nick = msg.nick || prev.nick;
+      prev.title = msg.title || prev.title;
+    }
+  } else if (msg.type === 'chat') {
+    const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+    appendChat(cm);
+    chatHistory.push(cm);
+    if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+    broadcastToGuests({ type: 'chat', ...cm }, conn);
   }
 }
 
-function destroyPeer() {
-  if (peer) {
-    try { peer.destroy(); } catch (e) {}
-    peer = null;
+function handleFromHost(msg) {
+  if (!msg || !msg.type) return;
+
+  if (msg.type === 'tick') {
+    if (msg.clark) {
+      clarkActive = !!msg.clark.active;
+      clarkImmunity = !!msg.clark.immunity;
+      clarkTarget.x = msg.clark.x;
+      clarkTarget.y = msg.clark.y;
+      clarkTarget.z = msg.clark.z;
+      clarkTarget.rot = msg.clark.rot;
+      clarkTarget.spd = msg.clark.spd;
+    }
+
+    if (msg.players) {
+      const seen = new Set();
+      Object.entries(msg.players).forEach(([id, p]) => {
+        if (id === myId) return;
+        seen.add(id);
+        let entry = remotePlayers.get(id);
+        if (!entry) {
+          entry = { ...p };
+          remotePlayers.set(id, entry);
+        } else {
+          entry.x = p.x; entry.y = p.y; entry.z = p.z;
+          entry.rot = p.rot; entry.spd = p.spd;
+          entry.nick = p.nick; entry.title = p.title;
+        }
+        ensureRemoteAvatar(id, remotePlayers.get(id));
+      });
+
+      remotePlayers.forEach((_, id) => {
+        if (!seen.has(id)) {
+          remotePlayers.delete(id);
+          removeRemotePlayer(id);
+        }
+      });
+    }
+    updateOnlineCount();
+  } else if (msg.type === 'chat') {
+    const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+    appendChat(cm);
+    chatHistory.push(cm);
+    if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+  } else if (msg.type === 'caught') {
+    if (msg.id === myId) {
+      vPos.set(0, 0, 0);
+      appendChat({ system: true, text: 'Clark caught you — back to spawn.' });
+    }
+  } else if (msg.type === 'kicked') {
+    appendChat({ system: true, text: 'You were removed from the room by the host.' });
+    destroyPeer();
+    role = null;
+    setHudStatus('○ kicked');
   }
+}
+
+function sendHostTick() {
+  if (role !== 'host' || !myUser) return;
+
+  allPlayers.set(myId, {
+    nick: myUser.nick, title: myUser.title,
+    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+    spd: holding ? WALK_SPEED : 0,
+  });
+
+  const players = {};
+  allPlayers.forEach((p, id) => { players[id] = p; });
+
+  const msg = {
+    type: 'tick',
+    clark: {
+      x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
+      spd: Math.hypot(dVel.x, dVel.z),
+      active: clarkActive, immunity: clarkImmunity,
+    },
+    players,
+  };
+
+  guests.forEach(g => {
+    if (g.open) { try { g.send(msg); } catch (e) {} }
+  });
+}
+
+function sendGuestUpdate() {
+  if (role !== 'guest' || !hostConn || !hostConn.open || !myUser) return;
+  const msg = {
+    type: 'update',
+    nick: myUser.nick, title: myUser.title,
+    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+    spd: holding ? WALK_SPEED : 0,
+  };
+  try { hostConn.send(msg); } catch (e) {}
+}
+
+function broadcastToGuests(msg, exclude) {
+  guests.forEach(g => {
+    if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} }
+  });
+}
+
+function destroyPeer() {
+  if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
   hostConn = null;
   guests = [];
 }
@@ -915,17 +1127,10 @@ function scheduleRetry() {
   }, 2500);
 }
 
-function updateOnlineCount() {
-  if (role === 'host') {
-    setHudStatus('● hosting · ' + (remoteAvatars.size + 1) + ' online');
-  } else if (role === 'guest') {
-    setHudStatus('● joined · ' + (remoteAvatars.size + 1) + ' online');
-  }
+function clearAllAvatars() {
+  remoteAvatars.forEach((_, id) => removeRemotePlayer(id));
+  remoteAvatars.clear();
 }
-
-window.addEventListener('beforeunload', () => {
-  try { if (peer) peer.destroy(); } catch (e) {}
-});
 
 /* ============================================================
    REMOTE AVATARS
@@ -936,50 +1141,11 @@ function hashHue(id) {
   return (h % 360) / 360;
 }
 
-function makeLabel(nick, title) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, c.width, c.height);
-
-  const hasTitle = title && title.length > 0;
-  const boxH = hasTitle ? 88 : 56;
-  const boxY = (c.height - boxH) / 2;
-
-  ctx.fillStyle = 'rgba(13, 10, 5, 0.78)';
-  ctx.fillRect(0, boxY, c.width, boxH);
-  ctx.strokeStyle = 'rgba(224, 200, 106, 0.7)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  ctx.font = 'bold 38px system-ui, sans-serif';
-  ctx.fillStyle = '#fff5d2';
-  ctx.fillText(nick, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
-
-  if (hasTitle) {
-    ctx.font = '22px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(216, 201, 138, 0.85)';
-    ctx.fillText(title.toUpperCase(), c.width / 2, boxY + 62);
-  }
-
-  const tex = new _T.CanvasTexture(c);
-  tex.colorSpace = _T.SRGBColorSpace;
-  const mat = new _T.SpriteMaterial({ map: tex, transparent: true });
-  const sprite = new _T.Sprite(mat);
-  sprite.scale.set(2.2, 0.55, 1);
-  sprite.position.y = 2.4;
-  return sprite;
-}
-
 function ensureRemoteAvatar(id, data) {
   if (remoteAvatars.has(id)) return;
 
   const rig = buildVRig();
 
-  // Tint by hashed ID — consistent per peer
   const hue = hashHue(id);
   rig.root.traverse(o => {
     if (o.isMesh && o.material) {
@@ -988,19 +1154,14 @@ function ensureRemoteAvatar(id, data) {
     }
   });
 
-  const label = makeLabel(data.nick, data.title);
+  const label = makeLabel(data.nick, data.title, '#fff5d2');
   rig.root.add(label);
 
   rig.root.position.set(data.x, data.y, data.z);
   rig.root.rotation.y = data.rot;
   scene.add(rig.root);
 
-  remoteAvatars.set(id, {
-    root: rig.root,
-    rig,
-    labelKey: data.nick + '|' + data.title,
-    phase: 0,
-  });
+  remoteAvatars.set(id, { root: rig.root, rig, phase: 0 });
 }
 
 function removeRemotePlayer(id) {
@@ -1024,9 +1185,8 @@ function removeRemotePlayer(id) {
   updateOnlineCount();
 }
 
-function updateAvatars(dt) {
+function updateRemoteAvatars(dt) {
   const k = 1 - Math.exp(-12 * dt);
-
   remoteAvatars.forEach((av, id) => {
     const p = remotePlayers.get(id);
     if (!p) return;
@@ -1048,13 +1208,200 @@ function updateAvatars(dt) {
       av.rig.legL.rotation.x = -s;
       av.rig.legR.rotation.x = s;
     } else {
-      const d = 1 - dt * 6;
-      av.rig.armL.rotation.x *= Math.max(0, d);
-      av.rig.armR.rotation.x *= Math.max(0, d);
-      av.rig.legL.rotation.x *= Math.max(0, d);
-      av.rig.legR.rotation.x *= Math.max(0, d);
+      const d = Math.max(0, 1 - dt * 6);
+      av.rig.armL.rotation.x *= d;
+      av.rig.armR.rotation.x *= d;
+      av.rig.legL.rotation.x *= d;
+      av.rig.legR.rotation.x *= d;
     }
   });
+}
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+function appendChat(msg) {
+  const el = document.getElementById('chat-messages');
+  if (!el) return;
+
+  const div = document.createElement('div');
+  div.className = 'chat-line' +
+    (msg.system ? ' system' : '') +
+    (msg.admin ? ' admin' : '');
+
+  if (msg.system) {
+    div.textContent = '· ' + msg.text;
+  } else {
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = msg.nick || 'Anon';
+    div.appendChild(who);
+
+    if (msg.title) {
+      const t = document.createElement('span');
+      t.className = 'title';
+      t.textContent = msg.title;
+      div.appendChild(t);
+    }
+
+    div.appendChild(document.createTextNode(': ' + (msg.text || '')));
+  }
+
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+
+  while (el.children.length > MAX_CHAT) el.removeChild(el.firstChild);
+}
+
+function sendChat() {
+  if (!joined || !myUser) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const msg = { nick: myUser.nick, title: myUser.title, text };
+  appendChat(msg);
+  chatHistory.push(msg);
+  if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+
+  if (role === 'host') {
+    broadcastToGuests({ type: 'chat', ...msg });
+  } else if (hostConn && hostConn.open) {
+    try { hostConn.send({ type: 'chat', ...msg }); } catch (e) {}
+  }
+}
+
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendChat();
+  } else if (e.key === 'Escape') {
+    e.target.blur();
+  }
+});
+
+/* ============================================================
+   ADMIN PANEL (host only, hotkey D → E → V)
+   ============================================================ */
+const adminKeys = [];
+let adminPanelOpen = false;
+
+function toggleAdminPanel(force) {
+  adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
+  document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
+}
+
+document.querySelectorAll('#admin-panel button').forEach(btn => {
+  btn.addEventListener('click', () => adminAction(btn.dataset.act));
+});
+
+window.addEventListener('keydown', (e) => {
+  if (!joined || role !== 'host') return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+  const k = e.key.toLowerCase();
+  if (k === 'd' || k === 'e' || k === 'v') {
+    adminKeys.push(k);
+    if (adminKeys.length > 3) adminKeys.shift();
+    if (adminKeys.join('') === 'dev') {
+      adminKeys.length = 0;
+      toggleAdminPanel();
+    }
+  } else {
+    adminKeys.length = 0;
+  }
+});
+
+function adminAction(action) {
+  if (role !== 'host' || !myUser) return;
+
+  switch (action) {
+    case 'add-clark': {
+      clarkActive = true;
+      resetMonster();
+      appendChat({ system: true, text: 'Admin: Clark has been added.' });
+      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: 'Clark has been added.' });
+      break;
+    }
+    case 'remove-clark': {
+      clarkActive = false;
+      appendChat({ system: true, text: 'Admin: Clark has been removed.' });
+      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: 'Clark has been removed.' });
+      break;
+    }
+    case 'toggle-immunity': {
+      clarkImmunity = !clarkImmunity;
+      const msg = 'Immunity is now ' + (clarkImmunity ? 'ON' : 'OFF') + '.';
+      appendChat({ system: true, text: 'Admin: ' + msg });
+      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: msg });
+      break;
+    }
+    case 'teleport-clark': {
+      if (!clarkActive) clarkActive = true;
+      dPos.set(vPos.x + 3, 0, vPos.z + 3);
+      dVel.set(0, 0, 0);
+      appendChat({ system: true, text: 'Admin: Clark teleported next to you.' });
+      break;
+    }
+    case 'reset-clark': {
+      resetMonster();
+      appendChat({ system: true, text: 'Admin: Clark reset to a random location.' });
+      break;
+    }
+    case 'broadcast': {
+      const text = prompt('Broadcast to all players:');
+      if (text && text.trim()) {
+        const clean = text.trim();
+        appendChat({ system: true, text: 'Admin broadcast: ' + clean });
+        broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: clean });
+      }
+      break;
+    }
+    case 'kick-all': {
+      if (!confirm('Kick all guests from the room?')) return;
+      guests.forEach(g => {
+        if (g.open) {
+          try { g.send({ type: 'kicked' }); } catch (e) {}
+          try { g.close(); } catch (e) {}
+        }
+      });
+      guests = [];
+      allPlayers.clear();
+      clearAllAvatars();
+      remotePlayers.clear();
+      appendChat({ system: true, text: 'Admin: all guests were kicked.' });
+      updateOnlineCount();
+      break;
+    }
+    case 'close':
+      toggleAdminPanel(false);
+      break;
+  }
+}
+
+/* ============================================================
+   START GAME
+   ============================================================ */
+function startGame(nick, title) {
+  myUser = { nick, title };
+  joined = true;
+
+  // Local player name tag
+  localLabelSprite = makeLabel(nick, title, '#e0c86a');
+  viewerVis.add(localLabelSprite);
+
+  document.getElementById('hud-name').textContent = nick;
+  document.getElementById('hud-title').textContent = title;
+  document.getElementById('chat-input').disabled = false;
+
+  const loginEl = document.getElementById('login');
+  loginEl.classList.add('hidden');
+  setTimeout(() => loginEl.remove(), 600);
+
+  initNet();
+  loop();
 }
 
 /* ============================================================
@@ -1085,6 +1432,7 @@ window.addEventListener('mousemove', (e) => {
   tPitch -= dy * 0.004;
   tPitch  = C(tPitch, -0.9, 1.2);
 });
+
 cv.addEventListener('wheel', (e) => {
   if (!joined) return;
   e.preventDefault();
@@ -1098,6 +1446,66 @@ function resize() {
   R.setSize(innerWidth, innerHeight, false);
 }
 window.addEventListener('resize', resize);
+
+/* ============================================================
+   CLARK PHYSICS (host-only)
+   ============================================================ */
+function updateClarkPhysics(dt) {
+  const pdx = vPos.x - dPos.x;
+  const pdz = vPos.z - dPos.z;
+  const pd = Math.hypot(pdx, pdz) || 1;
+
+  dVel.x += (pdx / pd) * MON_ACCEL * dt;
+  dVel.z += (pdz / pd) * MON_ACCEL * dt;
+
+  const fr = Math.exp(-MON_FRICTION * dt);
+  dVel.x *= fr; dVel.z *= fr;
+
+  const mspd = Math.hypot(dVel.x, dVel.z);
+  if (mspd > MON_MAXSPD) {
+    const kk = MON_MAXSPD / mspd;
+    dVel.x *= kk; dVel.z *= kk;
+  }
+
+  dPos.x += dVel.x * dt;
+  dPos.z += dVel.z * dt;
+  resolve(dPos, 0.6, dVel);
+
+  if (mspd > 0.5) {
+    const ta = Math.atan2(dVel.x, dVel.z);
+    let dh = (ta - dHeading) % (Math.PI * 2);
+    if (dh > Math.PI) dh -= Math.PI * 2;
+    if (dh < -Math.PI) dh += Math.PI * 2;
+    dHeading += dh * (1 - Math.exp(-MON_TURN * dt));
+  }
+}
+
+function hostCheckClarkCatch() {
+  if (role !== 'host' || !clarkActive || clarkImmunity) return;
+
+  const caught = [];
+
+  // Check self
+  if (Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z) < 1.1) {
+    vPos.set(0, 0, 0);
+    appendChat({ system: true, text: 'Clark caught you — back to spawn.' });
+    caught.push(myId);
+  }
+
+  // Check guests
+  allPlayers.forEach((p, id) => {
+    if (id === myId) return;
+    if (Math.hypot(p.x - dPos.x, p.z - dPos.z) < 1.1) {
+      caught.push(id);
+      const target = guests.find(g => g.peer === id);
+      if (target && target.open) {
+        try { target.send({ type: 'caught', id }); } catch (e) {}
+      }
+    }
+  });
+
+  if (caught.length > 0) resetMonster();
+}
 
 /* ============================================================
    LOOP
@@ -1133,40 +1541,30 @@ function step(dt) {
   }
   if (vMix) vMix.update(dt);
 
-  // --- monster ---
-  const pdx = vPos.x - dPos.x;
-  const pdz = vPos.z - dPos.z;
-  const pd = Math.hypot(pdx, pdz) || 1;
-
-  dVel.x += (pdx / pd) * MON_ACCEL * dt;
-  dVel.z += (pdz / pd) * MON_ACCEL * dt;
-
-  const fr = Math.exp(-MON_FRICTION * dt);
-  dVel.x *= fr; dVel.z *= fr;
-
-  const mspd = dVel.length();
-  if (mspd > MON_MAXSPD) {
-    const kk = MON_MAXSPD / mspd;
-    dVel.x *= kk; dVel.z *= kk;
+  // --- Clark: host physics, guest interpolation ---
+  if (role === 'host') {
+    if (clarkActive) {
+      updateClarkPhysics(dt);
+      hostCheckClarkCatch();
+    }
+  } else if (role === 'guest') {
+    dPos.x += (clarkTarget.x - dPos.x) * k;
+    dPos.y += (clarkTarget.y - dPos.y) * k;
+    dPos.z += (clarkTarget.z - dPos.z) * k;
+    let dr = clarkTarget.rot - dHeading;
+    while (dr > Math.PI) dr -= Math.PI * 2;
+    while (dr < -Math.PI) dr += Math.PI * 2;
+    dHeading += dr * k;
   }
 
-  dPos.x += dVel.x * dt;
-  dPos.z += dVel.z * dt;
-  resolve(dPos, 0.6, dVel);
-
-  if (mspd > 0.5) {
-    const ta = Math.atan2(dVel.x, dVel.z);
-    let dh = (ta - dHeading) % (Math.PI * 2);
-    if (dh > Math.PI) dh -= Math.PI * 2;
-    if (dh < -Math.PI) dh += Math.PI * 2;
-    dHeading += dh * (1 - Math.exp(-MON_TURN * dt));
-  }
-
+  // Clark visual
+  drifter.visible = clarkActive;
   drifter.position.copy(dPos);
   drifter.rotation.y = dHeading;
 
+  const mspd = role === 'host' ? Math.hypot(dVel.x, dVel.z) : clarkTarget.spd;
   const fwdX = Math.sin(dHeading), fwdZ = Math.cos(dHeading);
-  const lat = dVel.x * fwdZ - dVel.z * fwdX;
+  const lat = (dVel.x * fwdZ - dVel.z * fwdX);
   const lean = C(-lat * 0.12, -0.7, 0.7);
   drifterVis.rotation.z += (lean - drifterVis.rotation.z) * Math.min(1, dt * 6);
   drifterVis.rotation.x = C(mspd / MON_MAXSPD, 0, 1) * 0.12;
@@ -1179,9 +1577,9 @@ function step(dt) {
   }
   if (dMix) { dMix.update(dt); dMix.timeScale = 2.2; }
 
-  // --- theme audio ---
-  const dist = Math.hypot(pdx, pdz);
-  if (themeEl) {
+  // --- theme audio (personal, based on distance to Clark) ---
+  const dist = Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z);
+  if (themeEl && clarkActive) {
     const chasing = dist < 38;
     if (chasing) {
       if (themeEl.paused) themeEl.play().catch(() => {});
@@ -1192,11 +1590,9 @@ function step(dt) {
       themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
       if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
     }
-  }
-
-  if (dist < 1.1) {
-    vPos.set(0, 0, 0);
-    resetMonster();
+  } else if (themeEl && !themeEl.paused) {
+    themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
+    if (themeEl.volume < 0.01) themeEl.pause();
   }
 
   // --- camera orbit ---
@@ -1230,14 +1626,15 @@ function step(dt) {
   key.position.set(vPos.x + 4, 12, vPos.z + 4);
   key.target.position.copy(vPos);
 
-  // --- multiplayer sync ---
-  if (joined) {
+  // --- networking ---
+  if (joined && myUser) {
     netAccum += dt;
-    if (netAccum > 0.1) {
+    if (netAccum >= 0.1) {
       netAccum = 0;
-      sendState();
+      if (role === 'host') sendHostTick();
+      else if (role === 'guest') sendGuestUpdate();
     }
-    updateAvatars(dt);
+    updateRemoteAvatars(dt);
   }
 }
 
@@ -1252,13 +1649,12 @@ function loop() {
    BOOT
    ============================================================ */
 resize();
-// Don't start the loop yet — wait for the player to pick an identity.
+appendChat({ system: true, text: 'Welcome to Spatial Walk.' });
 
 loadAllAssets()
   .catch((err) => { console.warn('Asset load error', err); })
   .finally(() => {
     setLoad(100, 'ready');
-    // Loader fades out over ~1.5s; reveal login shortly after
     setTimeout(() => showLogin(), 900);
   });
 </script>
