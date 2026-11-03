@@ -3,85 +3,126 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>test123</title>
-<meta name="description" content="An interactive spatial walkthrough of an abstract interior layout." />
+<title>Spatial Walk — Multiplayer</title>
+<meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 <style>
   html, body {
-    margin: 0;
-    height: 100%;
-    background: #0d0a05;
-    overflow: hidden;
-    font-family: system-ui, sans-serif;
-    color: #fff5d2;
+    margin: 0; height: 100%; background: #0d0a05;
+    overflow: hidden; font-family: system-ui, sans-serif; color: #fff5d2;
   }
-  #stage {
-    position: fixed;
-    inset: 0;
-    cursor: pointer;
-  }
+  #stage { position: fixed; inset: 0; cursor: pointer; }
   canvas { display: block; width: 100%; height: 100%; }
   #hint {
-    position: absolute;
-    left: 14px;
-    bottom: 12px;
-    color: rgba(255,245,210,0.55);
-    font-size: 12px;
-    letter-spacing: .04em;
-    pointer-events: none;
-    user-select: none;
+    position: absolute; left: 14px; bottom: 12px;
+    color: rgba(255,245,210,0.55); font-size: 12px;
+    letter-spacing: .04em; pointer-events: none; user-select: none;
   }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: absolute; top: 14px; left: 14px; z-index: 5;
+    pointer-events: none; user-select: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+  #hud-name { font-size: 16px; color: #fff5d2; letter-spacing: .05em; font-weight: 600; }
+  #hud-title {
+    font-size: 11px; color: #d8c98a; opacity: .7;
+    letter-spacing: .1em; text-transform: uppercase; margin-top: 2px;
+  }
+  #hud-status { font-size: 11px; color: rgba(255,245,210,.5); margin-top: 6px; letter-spacing: .08em; }
 
   /* ---------- Loading screen ---------- */
   #loader {
-    position: fixed;
-    inset: 0;
-    background: #0d0a05;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    transition: opacity 0.6s ease;
+    position: fixed; inset: 0; background: #0d0a05;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 10; transition: opacity 0.6s ease;
   }
-  #loader.hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
   #loader-title {
-    font-size: 22px;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: #d8c98a;
-    margin-bottom: 18px;
-    opacity: 0.85;
+    font-size: 22px; letter-spacing: .12em; text-transform: uppercase;
+    color: #d8c98a; margin-bottom: 18px; opacity: 0.85;
   }
   #bar-track {
-    width: min(420px, 70vw);
-    height: 10px;
-    background: #221c0e;
-    border: 1px solid #3a3320;
-    border-radius: 4px;
-    overflow: hidden;
+    width: min(420px, 70vw); height: 10px; background: #221c0e;
+    border: 1px solid #3a3320; border-radius: 4px; overflow: hidden;
     box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
   }
   #bar-fill {
-    height: 100%;
-    width: 0%;
+    height: 100%; width: 0%;
     background: linear-gradient(90deg, #8a7430, #e0c86a);
     box-shadow: 0 0 12px rgba(224,200,106,0.4);
     transition: width 0.15s linear;
   }
   #loader-text {
-    margin-top: 14px;
-    font-size: 12px;
-    letter-spacing: .08em;
-    color: rgba(216,201,138,0.7);
-    min-height: 16px;
-    text-align: center;
+    margin-top: 14px; font-size: 12px; letter-spacing: .08em;
+    color: rgba(216,201,138,0.7); min-height: 16px; text-align: center;
   }
+
+  /* ---------- Login screen ---------- */
+  #login {
+    position: fixed; inset: 0; background: #0d0a05;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 10; padding: 20px; overflow-y: auto;
+    transition: opacity 0.5s ease;
+  }
+  #login.hidden { opacity: 0; pointer-events: none; }
+  #login h2 {
+    font-size: 20px; letter-spacing: .15em; text-transform: uppercase;
+    color: #d8c98a; margin: 0 0 24px; font-weight: normal;
+  }
+  #login .or {
+    font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+    color: rgba(216,201,138,0.4); margin: 14px 0 16px;
+  }
+  #user-list {
+    display: flex; flex-direction: column; gap: 8px;
+    width: min(380px, 92vw); max-height: 50vh; overflow-y: auto;
+    margin-bottom: 8px; padding: 4px;
+  }
+  .user-btn {
+    background: #221c0e; border: 1px solid #3a3320; color: #fff5d2;
+    padding: 14px 18px; border-radius: 6px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: inherit; font-size: 15px; text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .user-btn:hover { background: #2f2714; border-color: #8a7430; }
+  .user-nick { font-weight: 600; }
+  .user-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: #d8c98a; opacity: 0.7;
+  }
+  #user-empty {
+    opacity: 0.45; font-size: 13px; text-align: center;
+    padding: 18px 0; font-style: italic;
+  }
+  #new-nick {
+    background: #1a1509; border: 1px solid #3a3320; color: #fff5d2;
+    padding: 12px 16px; border-radius: 6px; font-family: inherit;
+    font-size: 14px; width: min(380px, 92vw); margin-bottom: 10px;
+    outline: none; box-sizing: border-box;
+  }
+  #new-nick:focus { border-color: #8a7430; }
+  #new-btn {
+    background: #8a7430; border: none; color: #0d0a05;
+    padding: 12px 28px; border-radius: 6px; font-family: inherit;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; cursor: pointer; transition: background 0.15s;
+  }
+  #new-btn:hover { background: #b09640; }
 </style>
 </head>
 <body>
+
+<!-- Login (behind loader, revealed after loading) -->
+<div id="login">
+  <h2>Identify Yourself</h2>
+  <div id="user-list"></div>
+  <div class="or">— or —</div>
+  <input id="new-nick" placeholder="Guest nickname…" maxlength="16" autocomplete="off" />
+  <button id="new-btn">Join as Guest</button>
+</div>
 
 <!-- Loading screen -->
 <div id="loader">
@@ -91,6 +132,11 @@
 </div>
 
 <div id="stage">
+  <div id="hud">
+    <div id="hud-name"></div>
+    <div id="hud-title"></div>
+    <div id="hud-status">○ idle</div>
+  </div>
   <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
 </div>
 
@@ -391,7 +437,7 @@ vRig = buildVRig(); viewerVis.add(vRig.root);
 dRig = buildDRig(); drifterVis.add(dRig.root);
 
 /* ============================================================
-   ASSET LOADING (real — progress bar tracks each file)
+   ASSET LOADING
    ============================================================ */
 function expand(ps) {
   const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
@@ -453,28 +499,23 @@ function prep(obj, fbTex) {
   });
 }
 
-// ---- Audio loading (theme.mp3) ----
 let themeEl = null;
 function loadAudio(url, onProgress) {
   return new Promise(res => {
     const a = new Audio();
-    a.preload = 'auto';
-    a.loop = true;
-    a.volume = 0;
+    a.preload = 'auto'; a.loop = true; a.volume = 0;
     let done = false;
     const finish = (ok) => { if (done) return; done = true; res(ok ? a : null); };
     a.addEventListener('canplaythrough', () => finish(true), { once: true });
     a.addEventListener('loadeddata', () => { if (onProgress) onProgress(); }, { once: true });
     a.addEventListener('error', () => finish(false), { once: true });
     a.src = url;
-    // fallback if browser doesn't fire canplaythrough in this context
     setTimeout(() => { if (!done && a.readyState >= 2) finish(true); }, 3500);
     setTimeout(() => { if (!done) finish(false); }, 6000);
   });
 }
 
 async function loadAllAssets() {
-  // Player model + texture
   setLoad(78, 'loading figure model…'); await yieldFrame();
   const [vM, vT] = await Promise.all([
     firstModel(['assets/player.fbx', 'assets/player.glb', 'assets/player.gltf']),
@@ -491,7 +532,6 @@ async function loadAllAssets() {
     }
   }
 
-  // Entity model + texture
   setLoad(88, 'loading entity model…'); await yieldFrame();
   const [dM, dT] = await Promise.all([
     firstModel(['assets/entaty.glb', 'assets/entaty.gltf', 'assets/entity.glb', 'assets/entity.gltf']),
@@ -508,12 +548,9 @@ async function loadAllAssets() {
     }
   }
 
-  // Theme audio
   setLoad(96, 'loading theme…'); await yieldFrame();
   themeEl = await loadAudio('assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
   setLoad(99, 'finishing…'); await yieldFrame();
-
-  // If audio failed, don't block — still finish
   setLoad(100, 'ready');
 }
 
@@ -532,7 +569,6 @@ let holding = false;
 const WALK_SPEED = 9.0;
 const vHeading = { y: Math.PI };
 
-// --- Monster: fast, low friction => slides ---
 const MON_ACCEL   = 55;
 const MON_MAXSPD  = 15;
 const MON_FRICTION = 0.35;
@@ -574,10 +610,8 @@ function resolve(pos, rad, vel) {
       if (vel) {
         const dot = vel.x * nx + vel.z * nz;
         if (dot < 0) {
-          vel.x -= dot * nx;
-          vel.z -= dot * nz;
-          vel.x *= 0.98;
-          vel.z *= 0.98;
+          vel.x -= dot * nx; vel.z -= dot * nz;
+          vel.x *= 0.98; vel.z *= 0.98;
         }
       }
     }
@@ -612,18 +646,429 @@ function resetMonster() {
 resetMonster();
 
 /* ============================================================
-   INPUT — hold click to advance, move mouse to aim
+   USER AUTH — boblox.users
+   ============================================================ */
+const USERS_KEY = 'boblox.users';
+
+function loadBobloxUsers() {
+  let raw;
+  try { raw = localStorage.getItem(USERS_KEY); } catch (e) { raw = null; }
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const users = {};
+    Object.keys(parsed).forEach(key => {
+      const rec = parsed[key];
+      if (rec && typeof rec === 'object') users[key] = rec;
+    });
+    return users;
+  } catch (e) {
+    return {};
+  }
+}
+
+let myUser = null;
+let joined = false;
+
+function showLogin() {
+  const users = loadBobloxUsers();
+  const list = document.getElementById('user-list');
+  list.innerHTML = '';
+  const nicks = Object.keys(users).sort();
+
+  if (nicks.length === 0) {
+    const empty = document.createElement('div');
+    empty.id = 'user-empty';
+    empty.textContent = 'No users in boblox.users — try a guest name below.';
+    list.appendChild(empty);
+  } else {
+    nicks.forEach(nick => {
+      const rec = users[nick] || {};
+      const title = typeof rec.title === 'string' ? rec.title : 'Explorer';
+      const btn = document.createElement('button');
+      btn.className = 'user-btn';
+      const n = document.createElement('span'); n.className = 'user-nick'; n.textContent = nick;
+      const t = document.createElement('span'); t.className = 'user-title'; t.textContent = title;
+      btn.appendChild(n); btn.appendChild(t);
+      btn.addEventListener('click', () => startGame(nick, title));
+      list.appendChild(btn);
+    });
+  }
+  document.getElementById('login').style.display = 'flex';
+}
+
+document.getElementById('new-btn').addEventListener('click', () => {
+  const nick = document.getElementById('new-nick').value.trim().slice(0, 16);
+  if (!nick) return;
+  startGame(nick, 'Guest');
+});
+document.getElementById('new-nick').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('new-btn').click();
+});
+
+function startGame(nick, title) {
+  myUser = { nick, title };
+  joined = true;
+
+  document.getElementById('hud-name').textContent = nick;
+  document.getElementById('hud-title').textContent = title;
+
+  const loginEl = document.getElementById('login');
+  loginEl.classList.add('hidden');
+  setTimeout(() => loginEl.remove(), 600);
+
+  initNet();
+  loop();
+}
+
+/* ============================================================
+   MULTIPLAYER NETWORKING
+   ============================================================ */
+// ⚠️ All players running this exact file share this room.
+//    Change the suffix to make a private room.
+const ROOM_ID = 'spatial-walk-public-v1';
+
+let peer = null;
+let role = null;
+let hostConn = null;
+let guests = [];
+let myId = null;
+let netAccum = 0;
+let retryLock = false;
+
+const remotePlayers = new Map();   // id -> { nick, title, x, y, z, rot, spd }
+const remoteAvatars = new Map();   // id -> { root, rig, labelKey, phase }
+
+function setHudStatus(text) {
+  const el = document.getElementById('hud-status');
+  if (el) el.textContent = text;
+}
+
+function clearRemotePlayers() {
+  remotePlayers.forEach((_, id) => removeRemotePlayer(id));
+  remotePlayers.clear();
+}
+
+function initNet() {
+  destroyPeer();
+  clearRemotePlayers();
+  setHudStatus('○ connecting…');
+
+  const p = new Peer(ROOM_ID, { debug: 0 });
+  peer = p;
+
+  p.on('open', (id) => {
+    myId = id;
+    role = 'host';
+    setHudStatus('● hosting · 1 online');
+  });
+
+  p.on('connection', onGuest);
+
+  p.on('error', (err) => {
+    if (err && err.type === 'unavailable-id') {
+      destroyPeer();
+      joinAsGuest();
+    } else if (err && err.type === 'network') {
+      scheduleRetry();
+    } else {
+      // Non-fatal
+    }
+  });
+
+  p.on('disconnected', () => {
+    try { p.reconnect(); } catch (e) {}
+  });
+}
+
+function joinAsGuest() {
+  destroyPeer();
+  setHudStatus('○ joining…');
+
+  const p = new Peer({ debug: 0 });
+  peer = p;
+
+  p.on('open', (id) => {
+    myId = id;
+    const conn = p.connect(ROOM_ID, { reliable: true });
+    hostConn = conn;
+
+    conn.on('open', () => {
+      role = 'guest';
+      setHudStatus('● joined · 1 online');
+      // Announce ourselves immediately
+      sendState();
+    });
+
+    conn.on('data', (msg) => handleIncoming(msg));
+
+    conn.on('close', scheduleRetry);
+    conn.on('error', scheduleRetry);
+  });
+
+  p.on('error', () => scheduleRetry());
+
+  p.on('disconnected', () => {
+    try { p.reconnect(); } catch (e) {}
+  });
+}
+
+function onGuest(conn) {
+  guests.push(conn);
+
+  // Send the newcomer everything we know
+  remotePlayers.forEach((pl, id) => {
+    try {
+      conn.send({
+        type: 'state', id,
+        nick: pl.nick, title: pl.title,
+        x: pl.x, y: pl.y, z: pl.z, rot: pl.rot, spd: pl.spd
+      });
+    } catch (e) {}
+  });
+  // And our own state
+  try {
+    conn.send({
+      type: 'state', id: myId,
+      nick: myUser.nick, title: myUser.title,
+      x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+      spd: holding ? WALK_SPEED : 0
+    });
+  } catch (e) {}
+
+  conn.on('data', (msg) => {
+    if (!msg || msg.type !== 'state') return;
+    handleIncoming(msg);
+    // Relay to all other guests
+    guests.forEach(g => {
+      if (g !== conn && g.open) {
+        try { g.send(msg); } catch (e) {}
+      }
+    });
+  });
+
+  conn.on('close', () => {
+    guests = guests.filter(g => g !== conn);
+    removeRemotePlayer(conn.peer);
+    updateOnlineCount();
+  });
+  conn.on('error', () => {
+    guests = guests.filter(g => g !== conn);
+    removeRemotePlayer(conn.peer);
+    updateOnlineCount();
+  });
+
+  updateOnlineCount();
+}
+
+function handleIncoming(msg) {
+  if (!msg || msg.type !== 'state') return;
+  if (msg.id === myId) return;
+
+  let p = remotePlayers.get(msg.id);
+  if (!p) {
+    p = { nick: msg.nick, title: msg.title, x: msg.x, y: msg.y, z: msg.z, rot: msg.rot, spd: msg.spd };
+    remotePlayers.set(msg.id, p);
+  } else {
+    p.nick = msg.nick; p.title = msg.title;
+    p.x = msg.x; p.y = msg.y; p.z = msg.z;
+    p.rot = msg.rot; p.spd = msg.spd;
+  }
+  ensureRemoteAvatar(msg.id, p);
+  updateOnlineCount();
+}
+
+function sendState() {
+  if (!myId || !myUser) return;
+  const msg = {
+    type: 'state', id: myId,
+    nick: myUser.nick, title: myUser.title,
+    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+    spd: holding ? WALK_SPEED : 0,
+  };
+  if (role === 'host') {
+    guests.forEach(g => {
+      if (g.open) { try { g.send(msg); } catch (e) {} }
+    });
+  } else if (hostConn && hostConn.open) {
+    try { hostConn.send(msg); } catch (e) {}
+  }
+}
+
+function destroyPeer() {
+  if (peer) {
+    try { peer.destroy(); } catch (e) {}
+    peer = null;
+  }
+  hostConn = null;
+  guests = [];
+}
+
+function scheduleRetry() {
+  if (retryLock) return;
+  retryLock = true;
+  setHudStatus('○ reconnecting…');
+  setTimeout(() => {
+    retryLock = false;
+    if (joined) initNet();
+  }, 2500);
+}
+
+function updateOnlineCount() {
+  if (role === 'host') {
+    setHudStatus('● hosting · ' + (remoteAvatars.size + 1) + ' online');
+  } else if (role === 'guest') {
+    setHudStatus('● joined · ' + (remoteAvatars.size + 1) + ' online');
+  }
+}
+
+window.addEventListener('beforeunload', () => {
+  try { if (peer) peer.destroy(); } catch (e) {}
+});
+
+/* ============================================================
+   REMOTE AVATARS
+   ============================================================ */
+function hashHue(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (h % 360) / 360;
+}
+
+function makeLabel(nick, title) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const hasTitle = title && title.length > 0;
+  const boxH = hasTitle ? 88 : 56;
+  const boxY = (c.height - boxH) / 2;
+
+  ctx.fillStyle = 'rgba(13, 10, 5, 0.78)';
+  ctx.fillRect(0, boxY, c.width, boxH);
+  ctx.strokeStyle = 'rgba(224, 200, 106, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.font = 'bold 38px system-ui, sans-serif';
+  ctx.fillStyle = '#fff5d2';
+  ctx.fillText(nick, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
+
+  if (hasTitle) {
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(216, 201, 138, 0.85)';
+    ctx.fillText(title.toUpperCase(), c.width / 2, boxY + 62);
+  }
+
+  const tex = new _T.CanvasTexture(c);
+  tex.colorSpace = _T.SRGBColorSpace;
+  const mat = new _T.SpriteMaterial({ map: tex, transparent: true });
+  const sprite = new _T.Sprite(mat);
+  sprite.scale.set(2.2, 0.55, 1);
+  sprite.position.y = 2.4;
+  return sprite;
+}
+
+function ensureRemoteAvatar(id, data) {
+  if (remoteAvatars.has(id)) return;
+
+  const rig = buildVRig();
+
+  // Tint by hashed ID — consistent per peer
+  const hue = hashHue(id);
+  rig.root.traverse(o => {
+    if (o.isMesh && o.material) {
+      o.material = o.material.clone();
+      o.material.color.setHSL(hue, 0.55, 0.55);
+    }
+  });
+
+  const label = makeLabel(data.nick, data.title);
+  rig.root.add(label);
+
+  rig.root.position.set(data.x, data.y, data.z);
+  rig.root.rotation.y = data.rot;
+  scene.add(rig.root);
+
+  remoteAvatars.set(id, {
+    root: rig.root,
+    rig,
+    labelKey: data.nick + '|' + data.title,
+    phase: 0,
+  });
+}
+
+function removeRemotePlayer(id) {
+  const av = remoteAvatars.get(id);
+  if (!av) return;
+  scene.remove(av.root);
+  av.root.traverse(o => {
+    if (o.isMesh) {
+      if (o.material) {
+        if (o.material.map) o.material.map.dispose?.();
+        o.material.dispose?.();
+      }
+      o.geometry?.dispose?.();
+    }
+    if (o.isSprite) {
+      o.material?.map?.dispose?.();
+      o.material?.dispose?.();
+    }
+  });
+  remoteAvatars.delete(id);
+  updateOnlineCount();
+}
+
+function updateAvatars(dt) {
+  const k = 1 - Math.exp(-12 * dt);
+
+  remoteAvatars.forEach((av, id) => {
+    const p = remotePlayers.get(id);
+    if (!p) return;
+
+    av.root.position.x += (p.x - av.root.position.x) * k;
+    av.root.position.y += (p.y - av.root.position.y) * k;
+    av.root.position.z += (p.z - av.root.position.z) * k;
+
+    let dr = p.rot - av.root.rotation.y;
+    while (dr > Math.PI) dr -= Math.PI * 2;
+    while (dr < -Math.PI) dr += Math.PI * 2;
+    av.root.rotation.y += dr * k;
+
+    if (p.spd > 0.1) {
+      av.phase += dt * 9;
+      const s = Math.sin(av.phase) * 0.85;
+      av.rig.armL.rotation.x = s;
+      av.rig.armR.rotation.x = -s;
+      av.rig.legL.rotation.x = -s;
+      av.rig.legR.rotation.x = s;
+    } else {
+      const d = 1 - dt * 6;
+      av.rig.armL.rotation.x *= Math.max(0, d);
+      av.rig.armR.rotation.x *= Math.max(0, d);
+      av.rig.legL.rotation.x *= Math.max(0, d);
+      av.rig.legR.rotation.x *= Math.max(0, d);
+    }
+  });
+}
+
+/* ============================================================
+   INPUT
    ============================================================ */
 const cv = R.domElement;
 let lastX = 0, lastY = 0;
 
 function resumeAudio() {
-  if (themeEl && themeEl.paused) {
-    themeEl.play().catch(() => {});
-  }
+  if (themeEl && themeEl.paused) themeEl.play().catch(() => {});
 }
 
 cv.addEventListener('mousedown', (e) => {
+  if (!joined) return;
   if (e.button !== 0) return;
   holding = true;
   lastX = e.clientX; lastY = e.clientY;
@@ -632,7 +1077,7 @@ cv.addEventListener('mousedown', (e) => {
 window.addEventListener('mouseup', () => { holding = false; });
 
 window.addEventListener('mousemove', (e) => {
-  if (!holding) return;
+  if (!joined || !holding) return;
   const dx = e.clientX - lastX;
   const dy = e.clientY - lastY;
   lastX = e.clientX; lastY = e.clientY;
@@ -641,6 +1086,7 @@ window.addEventListener('mousemove', (e) => {
   tPitch  = C(tPitch, -0.9, 1.2);
 });
 cv.addEventListener('wheel', (e) => {
+  if (!joined) return;
   e.preventDefault();
   const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
   tDist = C(tDist + d * 0.01, 1.5, 14);
@@ -696,8 +1142,7 @@ function step(dt) {
   dVel.z += (pdz / pd) * MON_ACCEL * dt;
 
   const fr = Math.exp(-MON_FRICTION * dt);
-  dVel.x *= fr;
-  dVel.z *= fr;
+  dVel.x *= fr; dVel.z *= fr;
 
   const mspd = dVel.length();
   if (mspd > MON_MAXSPD) {
@@ -734,25 +1179,21 @@ function step(dt) {
   }
   if (dMix) { dMix.update(dt); dMix.timeScale = 2.2; }
 
-  // --- theme audio: play when chasing, louder when closer ---
+  // --- theme audio ---
   const dist = Math.hypot(pdx, pdz);
   if (themeEl) {
-    // "chasing" = within a generous range and monster actually closing in
     const chasing = dist < 38;
     if (chasing) {
       if (themeEl.paused) themeEl.play().catch(() => {});
-      // closer -> louder. dist 38 -> ~0.05, dist 1 -> ~1.0
       const t = C(1 - (dist - 1) / 37, 0, 1);
       const targetVol = 0.05 + t * 0.95;
       themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
     } else {
-      // fade out when not chasing
       themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
       if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
     }
   }
 
-  // catch reset
   if (dist < 1.1) {
     vPos.set(0, 0, 0);
     resetMonster();
@@ -788,6 +1229,16 @@ function step(dt) {
   focus.position.set(vPos.x, vPos.y + 1.9, vPos.z);
   key.position.set(vPos.x + 4, 12, vPos.z + 4);
   key.target.position.copy(vPos);
+
+  // --- multiplayer sync ---
+  if (joined) {
+    netAccum += dt;
+    if (netAccum > 0.1) {
+      netAccum = 0;
+      sendState();
+    }
+    updateAvatars(dt);
+  }
 }
 
 function loop() {
@@ -797,11 +1248,19 @@ function loop() {
   R.render(scene, cam);
 }
 
+/* ============================================================
+   BOOT
+   ============================================================ */
 resize();
-loop();
+// Don't start the loop yet — wait for the player to pick an identity.
 
-// Kick off asset loading; the bar tracks real files now.
-loadAllAssets().catch(() => setLoad(100, 'ready'));
+loadAllAssets()
+  .catch((err) => { console.warn('Asset load error', err); })
+  .finally(() => {
+    setLoad(100, 'ready');
+    // Loader fades out over ~1.5s; reveal login shortly after
+    setTimeout(() => showLogin(), 900);
+  });
 </script>
 </body>
 </html>
