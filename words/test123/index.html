@@ -1,1845 +1,1986 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spatial Walk — Multiplayer</title>
-<meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
-<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
-<style>
-  html, body { margin: 0; height: 100%; background: #0d0a05; overflow: hidden; font-family: system-ui, sans-serif; color: #fff5d2; }
-  #stage { position: fixed; inset: 0; cursor: pointer; }
-  canvas { display: block; width: 100%; height: 100%; }
-  #hint { position: absolute; right: 14px; bottom: 12px; color: rgba(255,245,210,0.55); font-size: 11px; letter-spacing: .04em; pointer-events: none; user-select: none; text-align: right; }
-  #hud { position: absolute; top: 14px; left: 14px; z-index: 5; pointer-events: none; user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-  #hud-name { font-size: 16px; color: #fff5d2; letter-spacing: .05em; font-weight: 600; }
-  #hud-title { font-size: 11px; color: #d8c98a; opacity: .7; letter-spacing: .1em; text-transform: uppercase; margin-top: 2px; }
-  #hud-status { font-size: 11px; color: rgba(255,245,210,.5); margin-top: 6px; letter-spacing: .08em; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spatial Walk — Multiplayer</title>
+  <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
+  <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+  <style>
+    /* ----- reset & base ----- */
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; background: #0d0a05; overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif; color: #fff5d2;
+    }
+    #stage { position: fixed; inset: 0; cursor: pointer; }
+    canvas { display: block; width: 100%; height: 100%; }
 
-  #chat-panel { position: absolute; left: 14px; bottom: 14px; width: min(340px, 42vw); max-height: 240px; z-index: 8; display: flex; flex-direction: column; pointer-events: none; }
-  #chat-messages { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 8px; background: rgba(13,10,5,0.72); border-radius: 6px 6px 0 0; font-size: 12px; line-height: 1.4; min-height: 50px; max-height: 190px; scrollbar-width: thin; scrollbar-color: #3a3320 transparent; pointer-events: auto; }
-  #chat-messages::-webkit-scrollbar { width: 6px; }
-  #chat-messages::-webkit-scrollbar-thumb { background: #3a3320; border-radius: 3px; }
-  .chat-line { color: #fff5d2; word-wrap: break-word; }
-  .chat-line .who { color: #e0c86a; font-weight: 600; }
-  .chat-line .title { color: #8a7430; font-size: 9px; text-transform: uppercase; margin-left: 4px; letter-spacing: .06em; }
-  .chat-line.system { color: #d8c98a; font-style: italic; opacity: 0.75; }
-  .chat-line.admin { color: #ff9955; }
-  #chat-input { width: 100%; box-sizing: border-box; background: rgba(34,28,14,0.92); border: 1px solid #3a3320; color: #fff5d2; padding: 8px 10px; font-family: inherit; font-size: 12px; border-radius: 0 0 6px 6px; outline: none; pointer-events: auto; }
-  #chat-input:focus { border-color: #8a7430; }
-  #chat-input:disabled { opacity: 0.35; }
+    /* ----- hint ----- */
+    #hint {
+      position: absolute; right: 14px; bottom: 12px;
+      color: rgba(255,245,210,0.55); font-size: 11px;
+      letter-spacing: .04em; pointer-events: none; user-select: none; text-align: right;
+    }
 
-  #admin-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(13,10,5,0.97); border: 1px solid #8a7430; border-radius: 8px; padding: 18px 20px; z-index: 20; min-width: 300px; display: none; pointer-events: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.7); }
-  #admin-panel.open { display: block; }
-  #admin-panel .title { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #e0c86a; margin-bottom: 14px; text-align: center; padding-bottom: 10px; border-bottom: 1px solid #3a3320; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  #admin-panel button { display: flex; align-items: center; gap: 10px; width: 100%; background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 9px 12px; margin-bottom: 6px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; text-align: left; transition: background 0.15s, border-color 0.15s; }
-  #admin-panel button:hover { background: #2f2714; border-color: #8a7430; }
-  #admin-panel button.close { margin-top: 10px; background: #2a1a0f; border-color: #5a3515; color: #ff9955; }
-  #admin-panel button.close:hover { background: #3a2215; }
-  #admin-panel .icon { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  #admin-panel .clark-count { text-align: center; font-size: 11px; color: #d8c98a; opacity: .75; margin-bottom: 10px; letter-spacing: .08em; }
+    /* ----- HUD ----- */
+    #hud {
+      position: absolute; top: 14px; left: 14px; z-index: 5;
+      pointer-events: none; user-select: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    #hud-name { font-size: 16px; color: #fff5d2; letter-spacing: .05em; font-weight: 600; }
+    #hud-title {
+      font-size: 11px; color: #d8c98a; opacity: .7;
+      letter-spacing: .1em; text-transform: uppercase; margin-top: 2px;
+    }
+    #hud-status {
+      font-size: 11px; color: rgba(255,245,210,.5);
+      margin-top: 6px; letter-spacing: .08em;
+    }
 
-  #loader { position: fixed; inset: 0; background: #0d0a05; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.6s ease; }
-  #loader.hidden { opacity: 0; pointer-events: none; }
-  #loader-title { font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: #d8c98a; margin-bottom: 18px; opacity: 0.85; }
-  #bar-track { width: min(420px, 70vw); height: 10px; background: #221c0e; border: 1px solid #3a3320; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 8px rgba(0,0,0,0.6); }
-  #bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #8a7430, #e0c86a); box-shadow: 0 0 12px rgba(224,200,106,0.4); transition: width 0.15s linear; }
-  #loader-text { margin-top: 14px; font-size: 12px; letter-spacing: .08em; color: rgba(216,201,138,0.7); min-height: 16px; text-align: center; }
+    /* ----- chat ----- */
+    #chat-panel {
+      position: absolute; left: 14px; bottom: 14px;
+      width: min(340px, 42vw); max-height: 240px; z-index: 8;
+      display: flex; flex-direction: column; pointer-events: none;
+    }
+    #chat-messages {
+      overflow-y: auto; flex: 1; display: flex; flex-direction: column;
+      gap: 2px; padding: 8px; background: rgba(13,10,5,0.72);
+      border-radius: 6px 6px 0 0; font-size: 12px; line-height: 1.4;
+      min-height: 50px; max-height: 190px;
+      scrollbar-width: thin; scrollbar-color: #3a3320 transparent;
+      pointer-events: auto;
+    }
+    #chat-messages::-webkit-scrollbar { width: 6px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: #3a3320; border-radius: 3px; }
+    .chat-line { color: #fff5d2; word-wrap: break-word; }
+    .chat-line .who { color: #e0c86a; font-weight: 600; }
+    .chat-line .title {
+      color: #8a7430; font-size: 9px; text-transform: uppercase;
+      margin-left: 4px; letter-spacing: .06em;
+    }
+    .chat-line.system { color: #d8c98a; font-style: italic; opacity: 0.75; }
+    .chat-line.admin { color: #ff9955; }
 
-  #login { position: fixed; inset: 0; background: #0d0a05; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; padding: 20px; overflow-y: auto; transition: opacity 0.5s ease; }
-  #login.hidden { opacity: 0; pointer-events: none; }
-  #login h2 { font-size: 20px; letter-spacing: .15em; text-transform: uppercase; color: #d8c98a; margin: 0 0 24px; font-weight: normal; }
-  #login .or { font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: rgba(216,201,138,0.4); margin: 14px 0 16px; }
-  #user-list { display: flex; flex-direction: column; gap: 8px; width: min(380px, 92vw); max-height: 45vh; overflow-y: auto; margin-bottom: 8px; padding: 4px; }
-  .user-btn { background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 14px 18px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-family: inherit; font-size: 15px; text-align: left; transition: background 0.15s, border-color 0.15s; }
-  .user-btn:hover { background: #2f2714; border-color: #8a7430; }
-  .user-nick { font-weight: 600; }
-  .user-title { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #d8c98a; opacity: 0.7; }
-  #user-empty { opacity: 0.45; font-size: 13px; text-align: center; padding: 18px 0; font-style: italic; }
-  #new-nick { background: #1a1509; border: 1px solid #3a3320; color: #fff5d2; padding: 12px 16px; border-radius: 6px; font-family: inherit; font-size: 14px; width: min(380px, 92vw); margin-bottom: 10px; outline: none; box-sizing: border-box; }
-  #new-nick:focus { border-color: #8a7430; }
-  #new-btn { background: #8a7430; border: none; color: #0d0a05; padding: 12px 28px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: background 0.15s; }
-  #new-btn:hover { background: #b09640; }
-</style>
+    #chat-input {
+      width: 100%; box-sizing: border-box;
+      background: rgba(34,28,14,0.92); border: 1px solid #3a3320;
+      color: #fff5d2; padding: 8px 10px; font-family: inherit; font-size: 12px;
+      border-radius: 0 0 6px 6px; outline: none; pointer-events: auto;
+    }
+    #chat-input:focus { border-color: #8a7430; }
+    #chat-input:disabled { opacity: 0.35; }
+
+    /* ----- admin panel ----- */
+    #admin-panel {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(13,10,5,0.97); border: 1px solid #8a7430;
+      border-radius: 8px; padding: 18px 20px; z-index: 20;
+      min-width: 300px; display: none; pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+    }
+    #admin-panel.open { display: block; }
+    #admin-panel .title {
+      font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase;
+      color: #e0c86a; margin-bottom: 14px; text-align: center;
+      padding-bottom: 10px; border-bottom: 1px solid #3a3320;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    #admin-panel button {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      background: #221c0e; border: 1px solid #3a3320; color: #fff5d2;
+      padding: 9px 12px; margin-bottom: 6px; border-radius: 4px;
+      cursor: pointer; font-family: inherit; font-size: 12px; text-align: left;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #admin-panel button:hover { background: #2f2714; border-color: #8a7430; }
+    #admin-panel button.close {
+      margin-top: 10px; background: #2a1a0f; border-color: #5a3515; color: #ff9955;
+    }
+    #admin-panel button.close:hover { background: #3a2215; }
+    #admin-panel .icon {
+      width: 16px; height: 16px; flex-shrink: 0;
+      stroke: currentColor; fill: none; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .clark-count {
+      text-align: center; font-size: 11px; color: #d8c98a;
+      opacity: .75; margin-bottom: 10px; letter-spacing: .08em;
+    }
+
+    /* ----- loader ----- */
+    #loader {
+      position: fixed; inset: 0; background: #0d0a05;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10; transition: opacity 0.6s ease;
+    }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader-title {
+      font-size: 22px; letter-spacing: .12em; text-transform: uppercase;
+      color: #d8c98a; margin-bottom: 18px; opacity: 0.85;
+    }
+    #bar-track {
+      width: min(420px, 70vw); height: 10px; background: #221c0e;
+      border: 1px solid #3a3320; border-radius: 4px; overflow: hidden;
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
+    }
+    #bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #8a7430, #e0c86a);
+      box-shadow: 0 0 12px rgba(224,200,106,0.4);
+      transition: width 0.15s linear;
+    }
+    #loader-text {
+      margin-top: 14px; font-size: 12px; letter-spacing: .08em;
+      color: rgba(216,201,138,0.7); min-height: 16px; text-align: center;
+    }
+
+    /* ----- login ----- */
+    #login {
+      position: fixed; inset: 0; background: #0d0a05;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10; padding: 20px; overflow-y: auto;
+      transition: opacity 0.5s ease;
+    }
+    #login.hidden { opacity: 0; pointer-events: none; }
+    #login h2 {
+      font-size: 20px; letter-spacing: .15em; text-transform: uppercase;
+      color: #d8c98a; margin: 0 0 24px; font-weight: normal;
+    }
+    #login .or {
+      font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+      color: rgba(216,201,138,0.4); margin: 14px 0 16px;
+    }
+    #user-list {
+      display: flex; flex-direction: column; gap: 8px;
+      width: min(380px, 92vw); max-height: 45vh; overflow-y: auto;
+      margin-bottom: 8px; padding: 4px;
+    }
+    .user-btn {
+      background: #221c0e; border: 1px solid #3a3320; color: #fff5d2;
+      padding: 14px 18px; border-radius: 6px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: inherit; font-size: 15px; text-align: left;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .user-btn:hover { background: #2f2714; border-color: #8a7430; }
+    .user-nick { font-weight: 600; }
+    .user-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+      color: #d8c98a; opacity: 0.7;
+    }
+    #user-empty {
+      opacity: 0.45; font-size: 13px; text-align: center;
+      padding: 18px 0; font-style: italic;
+    }
+    #new-nick {
+      background: #1a1509; border: 1px solid #3a3320; color: #fff5d2;
+      padding: 12px 16px; border-radius: 6px; font-family: inherit; font-size: 14px;
+      width: min(380px, 92vw); margin-bottom: 10px; outline: none;
+    }
+    #new-nick:focus { border-color: #8a7430; }
+    #new-btn {
+      background: #8a7430; border: none; color: #0d0a05;
+      padding: 12px 28px; border-radius: 6px; font-family: inherit;
+      font-size: 12px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; cursor: pointer; transition: background 0.15s;
+    }
+    #new-btn:hover { background: #b09640; }
+  </style>
 </head>
 <body>
 
-<div id="login">
-  <h2>Identify Yourself</h2>
-  <div id="user-list"></div>
-  <div class="or">— or —</div>
-  <input id="new-nick" placeholder="Guest nickname…" maxlength="16" autocomplete="off" />
-  <button id="new-btn">Join as Guest</button>
-</div>
-
-<div id="loader">
-  <div id="loader-title">Preparing Space</div>
-  <div id="bar-track"><div id="bar-fill"></div></div>
-  <div id="loader-text">booting…</div>
-</div>
-
-<div id="stage">
-  <div id="hud">
-    <div id="hud-name"></div>
-    <div id="hud-title"></div>
-    <div id="hud-status">○ idle</div>
+  <!-- LOGIN -->
+  <div id="login">
+    <h2>Identify Yourself</h2>
+    <div id="user-list"></div>
+    <div class="or">— or —</div>
+    <input id="new-nick" placeholder="Guest nickname…" maxlength="16" autocomplete="off" />
+    <button id="new-btn">Join as Guest</button>
   </div>
-  <div id="hint">hold click to advance · shift to sprint · move mouse to aim · scroll to dolly</div>
-</div>
 
-<div id="chat-panel">
-  <div id="chat-messages"></div>
-  <input id="chat-input" placeholder="say something…  (enter to send)" maxlength="200" disabled />
-</div>
-
-<div id="admin-panel">
-  <div class="title">
-    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/></svg>
-    Admin Panel · Host Only
+  <!-- LOADER -->
+  <div id="loader">
+    <div id="loader-title">Preparing Space</div>
+    <div id="bar-track"><div id="bar-fill"></div></div>
+    <div id="loader-text">booting…</div>
   </div>
-  <div class="clark-count" id="clark-count">Clarks: 0 / 12</div>
-  <button data-act="add-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add Clark</button>
-  <button data-act="remove-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Remove Clark</button>
-  <button data-act="clear-clarks"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear All Clarks</button>
-  <button data-act="toggle-immunity"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/><path d="M9 12l2 2 4-4"/></svg>Toggle Immunity</button>
-  <button data-act="teleport-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-12a7 7 0 1114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>Teleport Clarks to Me</button>
-  <button data-act="reset-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1015-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Reset Clarks</button>
-  <button data-act="broadcast"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 001 1h2l4 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a10 10 0 010 14"/></svg>Broadcast Message</button>
-  <button data-act="kick-all"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Kick All Guests</button>
-  <button data-act="close" class="close"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Close</button>
-</div>
 
-<script type="module">
-/* ============================================================
-   LOADING SCREEN HELPERS
-   ============================================================ */
-const loaderEl = document.getElementById('loader');
-const fillEl   = document.getElementById('bar-fill');
-const statusEl = document.getElementById('loader-text');
+  <!-- STAGE / HUD / HINT -->
+  <div id="stage">
+    <div id="hud">
+      <div id="hud-name"></div>
+      <div id="hud-title"></div>
+      <div id="hud-status">○ idle</div>
+    </div>
+    <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
+  </div>
 
-let loadPct = 0;
-function setLoad(pct, label) {
-  loadPct = Math.max(loadPct, Math.min(100, pct));
-  fillEl.style.width = loadPct + '%';
-  if (label) statusEl.textContent = label;
-  if (loadPct >= 100) {
-    setTimeout(() => {
-      loaderEl.classList.add('hidden');
-      setTimeout(() => { if (loaderEl.parentNode) loaderEl.remove(); }, 700);
-    }, 220);
-  }
-}
-const yieldFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+  <!-- CHAT -->
+  <div id="chat-panel">
+    <div id="chat-messages"></div>
+    <input id="chat-input" placeholder="say something…  (enter to send)" maxlength="200" disabled />
+  </div>
 
-/* ============================================================
-   MODULE LOADING
-   ============================================================ */
-setLoad(3, 'loading three.js…');
-const TMO = 10000;
-const _ti = (u) => Promise.race([
-  import(u),
-  new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
-]);
-async function _ta(urls) {
-  for (const u of urls) { try { return await _ti(u); } catch (e) {} }
-  return null;
-}
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel">
+    <div class="title">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/></svg>
+      Admin Panel · Host Only
+    </div>
+    <div class="clark-count" id="clark-count">Clarks: 0 / 12</div>
+    <button data-act="add-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add Clark</button>
+    <button data-act="remove-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Remove Clark</button>
+    <button data-act="clear-clarks"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear All Clarks</button>
+    <button data-act="toggle-immunity"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/><path d="M9 12l2 2 4-4"/></svg>Toggle Immunity</button>
+    <button data-act="teleport-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-12a7 7 0 1114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>Teleport Clarks to Me</button>
+    <button data-act="reset-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1015-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Reset Clarks</button>
+    <button data-act="broadcast"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 001 1h2l4 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a10 10 0 010 14"/></svg>Broadcast Message</button>
+    <button data-act="kick-all"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Kick All Guests</button>
+    <button data-act="close" class="close"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Close</button>
+  </div>
 
-const _T = await _ta([
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
-  'https://esm.sh/three@0.160.0/build/three.module.js',
-  'https://unpkg.com/three@0.160.0/build/three.module.js',
-]);
-if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load failed'); }
-setLoad(15, 'loading loaders…');
-await yieldFrame();
+  <script type="module">
+    /* ============================================================
+       LOADING SCREEN
+       ============================================================ */
+    const loaderEl = document.getElementById('loader');
+    const fillEl = document.getElementById('bar-fill');
+    const statusEl = document.getElementById('loader-text');
 
-let _GL = null, _FL = null, _SU = null;
-try { const m = await _ta([
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-  'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-]); if (m) _GL = m.GLTFLoader; } catch (e) {}
-setLoad(22, 'loading loaders…');
-await yieldFrame();
-try { const m = await _ta([
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
-  'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
-]); if (m) _FL = m.FBXLoader; } catch (e) {}
-setLoad(28, 'loading cloner…');
-await yieldFrame();
-try { const m = await _ta([
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
-  'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
-]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
-setLoad(30, 'building scene…');
-await yieldFrame();
-
-/* ============================================================
-   SETUP
-   ============================================================ */
-const C = _T.MathUtils.clamp;
-const stage = document.getElementById('stage');
-const R = new _T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-R.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-R.shadowMap.enabled = true;
-R.shadowMap.type = _T.PCFSoftShadowMap;
-R.outputColorSpace = _T.SRGBColorSpace;
-R.toneMapping = _T.ACESFilmicToneMapping;
-stage.appendChild(R.domElement);
-
-const scene = new _T.Scene();
-scene.background = new _T.Color(0xb9a44e);
-scene.fog = new _T.Fog(0xb9a44e, 10, 50);
-
-const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
-
-/* ============================================================
-   PROCEDURAL TEXTURES
-   ============================================================ */
-function tex(w, h, draw) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const t = new _T.CanvasTexture(c);
-  t.colorSpace = _T.SRGBColorSpace;
-  t.wrapS = t.wrapT = _T.RepeatWrapping; t.anisotropy = 4;
-  return t;
-}
-
-setLoad(36, 'painting walls…');
-await yieldFrame();
-
-const wallTex = tex(512, 512, (ctx, w, h) => {
-  ctx.fillStyle = '#c4b06a'; ctx.fillRect(0, 0, w, h);
-  for (let x = 0; x < w; x += 32) {
-    ctx.fillStyle = 'rgba(255,248,200,.05)'; ctx.fillRect(x, 0, 16, h);
-    ctx.fillStyle = 'rgba(60,45,12,.05)'; ctx.fillRect(x + 16, 0, 16, h);
-  }
-  const img = ctx.getImageData(0, 0, w, h), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
-  ctx.putImageData(img, 0, 0);
-  for (let i = 0; i < 30; i++) {
-    const x = Math.random() * w, y = Math.random() * h, r = 20 + Math.random() * 85;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(110,82,28,${.05 + Math.random() * .1})`);
-    g.addColorStop(1, 'rgba(110,82,28,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  }
-  const bh = h * .05;
-  ctx.fillStyle = '#6e5a35'; ctx.fillRect(0, h - bh, w, bh);
-  ctx.fillStyle = 'rgba(255,240,180,.14)'; ctx.fillRect(0, h - bh, w, 2);
-  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
-});
-
-setLoad(44, 'painting floor…');
-await yieldFrame();
-
-const floorTex = tex(256, 256, (ctx, w, h) => {
-  ctx.fillStyle = '#9a8738'; ctx.fillRect(0, 0, w, h);
-  const img = ctx.getImageData(0, 0, w, h), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 44; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
-  ctx.putImageData(img, 0, 0);
-  for (let i = 0; i < 900; i++) {
-    const x = Math.random() * w, y = Math.random() * h, l = 2 + Math.random() * 4, a = Math.random() * Math.PI;
-    ctx.strokeStyle = `rgba(${60 + Math.random() * 90},${55 + Math.random() * 80},${15 + Math.random() * 40},${.12 + Math.random() * .2})`;
-    ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(x, y);
-    ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
-  }
-  for (let i = 0; i < 22; i++) {
-    const x = Math.random() * w, y = Math.random() * h, r = 12 + Math.random() * 52;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(50,38,12,${.08 + Math.random() * .14})`);
-    g.addColorStop(1, 'rgba(50,38,12,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  }
-});
-
-setLoad(51, 'painting ceiling…');
-await yieldFrame();
-
-const ceilTex = tex(256, 256, (ctx, w, h) => {
-  ctx.fillStyle = '#d3caa0'; ctx.fillRect(0, 0, w, h);
-  const t = w / 2;
-  for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
-    ctx.fillStyle = `rgba(${180 + Math.random() * 30},${170 + Math.random() * 30},${120 + Math.random() * 40},.22)`;
-    ctx.fillRect(tx * t + 3, ty * t + 3, t - 6, t - 6);
-    for (let i = 0; i < 40; i++) {
-      ctx.fillStyle = 'rgba(90,80,45,.16)';
-      ctx.beginPath();
-      ctx.arc(tx * t + 8 + Math.random() * (t - 16), ty * t + 8 + Math.random() * (t - 16), 1 + Math.random() * 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  ctx.strokeStyle = 'rgba(80,70,38,.5)'; ctx.lineWidth = 4;
-  ctx.strokeRect(0, 0, w, h);
-  ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
-});
-
-setLoad(58, 'placing lights…');
-await yieldFrame();
-
-/* ============================================================
-   LIGHTS
-   ============================================================ */
-scene.add(new _T.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
-const key = new _T.DirectionalLight(0xfff4cc, 1.35);
-key.position.set(4, 12, 4); key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0012;
-const sc = key.shadow.camera;
-sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 50;
-scene.add(key); scene.add(key.target);
-const focus = new _T.PointLight(0xffe8a8, 14, 15, 2);
-scene.add(focus);
-
-setLoad(64, 'raising walls…');
-await yieldFrame();
-
-/* ============================================================
-   MAP
-   ============================================================ */
-const WH = 6.0, WT = 0.6, MS = 120;
-const boxes = [];
-
-function wall(x, z, w, d) {
-  const m = new _T.Mesh(
-    new _T.BoxGeometry(w, WH, d),
-    new _T.MeshStandardMaterial({ map: wallTex, roughness: .95 })
-  );
-  m.position.set(x, WH / 2, z);
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  boxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
-}
-
-wall(0, -MS/2, MS, WT);
-wall(0, MS/2, MS, WT);
-wall(-MS/2, 0, WT, MS);
-wall(MS/2, 0, WT, MS);
-
-for (let x = -MS/2 + 10; x < MS/2 - 10; x += 20) {
-  for (let z = -MS/2 + 10; z < MS/2 - 10; z += 20) {
-    if (Math.hypot(x, z) < 10) continue;
-    const r = Math.random();
-    if (r < 0.3) {
-      wall(x, z, 8, 1); wall(x - 3.5, z - 3.5, 1, 8);
-    } else if (r < 0.6) {
-      wall(x, z, 10, 1.5); wall(x, z, 1.5, 10);
-    } else if (r < 0.8) {
-      wall(x, z, 12, 1); wall(x + 6, z + 6, 1, 12);
-    } else {
-      wall(x-2, z-2, 2, 2); wall(x+2, z-2, 2, 2);
-      wall(x-2, z+2, 2, 2); wall(x+2, z+2, 2, 2);
-    }
-  }
-}
-
-const fl = new _T.Mesh(
-  new _T.PlaneGeometry(MS * 2, MS * 2),
-  new _T.MeshStandardMaterial({ map: floorTex, roughness: 1 })
-);
-fl.rotation.x = -Math.PI / 2; fl.receiveShadow = true; scene.add(fl);
-
-const ce = new _T.Mesh(
-  new _T.PlaneGeometry(MS * 2, MS * 2),
-  new _T.MeshStandardMaterial({ map: ceilTex, roughness: 1, side: _T.DoubleSide })
-);
-ce.rotation.x = Math.PI / 2; ce.position.y = WH; ce.receiveShadow = true; scene.add(ce);
-
-const lm = new _T.MeshBasicMaterial({ color: 0xfff6c4 });
-for (let x = -40; x <= 40; x += 20) {
-  for (let z = -40; z <= 40; z += 20) {
-    const p = new _T.Mesh(new _T.PlaneGeometry(2.5, 2.5), lm);
-    p.rotation.x = Math.PI / 2; p.position.set(x, WH - 0.02, z); scene.add(p);
-  }
-}
-
-setLoad(72, 'building figures…');
-await yieldFrame();
-
-/* ============================================================
-   FIGURES
-   ============================================================ */
-const mkBox = (w, h, d, mat) => {
-  const m = new _T.Mesh(new _T.BoxGeometry(w, h, d), mat);
-  m.castShadow = true; m.receiveShadow = true; return m;
-};
-
-const viewer = new _T.Group(); scene.add(viewer);
-const viewerVis = new _T.Group(); viewer.add(viewerVis);
-
-const clarkGroup = new _T.Group(); scene.add(clarkGroup);
-
-let vRig = null, vMix = null;
-let localLabelSprite = null;
-
-let playerModelTemplate = null;
-let playerModelAnimations = [];
-let playerModelIdleClip = null;
-let playerModelHeight = 1.85;
-
-let entityModelTemplate = null;
-let entityModelAnimations = [];
-let entityModelWalkClip = null;
-let entityModelHeight = 2.2;
-
-function buildVRig() {
-  const root = new _T.Group();
-  const sk = new _T.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
-  const sh = new _T.MeshStandardMaterial({ color: 0x2f6fbf, roughness: .9 });
-  const pn = new _T.MeshStandardMaterial({ color: 0x3f6f3f, roughness: .9 });
-  const to = mkBox(.7, .7, .36, sh); to.position.y = 1.05; root.add(to);
-  const hd = mkBox(.42, .42, .42, sk); hd.position.y = 1.62; root.add(hd);
-  const lb = (x, y, w, h, d, mat) => {
-    const p = new _T.Group(); p.position.set(x, y, 0);
-    const m = mkBox(w, h, d, mat); m.position.y = -h / 2; p.add(m); root.add(p); return p;
-  };
-  return { root,
-    armL: lb(-.49, 1.4, .24, .66, .24, sk), armR: lb(.49, 1.4, .24, .66, .24, sk),
-    legL: lb(-.17, .7, .27, .7, .3, pn), legR: lb(.17, .7, .27, .7, .3, pn) };
-}
-
-function buildClarkFallbackRig() {
-  const root = new _T.Group();
-  const su = new _T.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
-  const sk = new _T.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
-  const ey = new _T.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
-  const ll = 1.0;
-  const lL = new _T.Group(); lL.position.set(-.2, 1.0, 0); root.add(lL);
-  const lLM = mkBox(.25, ll, .25, su); lLM.position.y = -ll/2; lL.add(lLM);
-  const lR = new _T.Group(); lR.position.set(.2, 1.0, 0); root.add(lR);
-  const lRM = mkBox(.25, ll, .25, su); lRM.position.y = -ll/2; lR.add(lRM);
-  const to = mkBox(.65, .9, .35, su); to.position.y = 1.5; root.add(to);
-  const hd = mkBox(.4, .4, .4, sk); hd.position.y = 2.15; root.add(hd);
-  const eL = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eL.position.set(-.1, 2.2, .21); root.add(eL);
-  const eR = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eR.position.set(.1, 2.2, .21); root.add(eR);
-  const aL = new _T.Group(); aL.position.set(-.4, 1.8, 0); root.add(aL);
-  const aLM = mkBox(.15, .9, .15, su); aLM.position.y = -.45; aL.add(aLM);
-  const aR = new _T.Group(); aR.position.set(.4, 1.8, 0); root.add(aR);
-  const aRM = mkBox(.15, .9, .15, su); aRM.position.y = -.45; aR.add(aRM);
-  return { root, armL: aL, armR: aR, legL: lL, legR: lR };
-}
-
-vRig = buildVRig(); viewerVis.add(vRig.root);
-
-/* ============================================================
-   NAME LABELS
-   ============================================================ */
-function makeLabel(nick, title, color, isHost) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const ctx = c.getContext('2d');
-
-  const hasTitle = title && title.length > 0;
-  const boxH = hasTitle ? 88 : 56;
-  const boxY = (c.height - boxH) / 2;
-
-  ctx.fillStyle = 'rgba(13, 10, 5, 0.82)';
-  ctx.fillRect(0, boxY, c.width, boxH);
-  ctx.strokeStyle = isHost ? 'rgba(255, 153, 85, 0.85)' : 'rgba(224, 200, 106, 0.7)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  const nameY = boxY + (hasTitle ? 30 : boxH / 2);
-
-  let textOffsetX = 0;
-  if (isHost) {
-    const cx = c.width / 2 - 90;
-    const cy = nameY - 12;
-    ctx.save();
-    ctx.fillStyle = '#ff9955';
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + 16);
-    ctx.lineTo(cx + 4, cy + 4);
-    ctx.lineTo(cx + 10, cy + 10);
-    ctx.lineTo(cx + 16, cy);
-    ctx.lineTo(cx + 22, cy + 10);
-    ctx.lineTo(cx + 28, cy + 4);
-    ctx.lineTo(cx + 32, cy + 16);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-    textOffsetX = 20;
-  }
-
-  ctx.font = 'bold 38px system-ui, sans-serif';
-  ctx.fillStyle = color || '#fff5d2';
-  ctx.fillText(nick, c.width / 2 + textOffsetX, nameY);
-
-  if (hasTitle) {
-    ctx.font = '22px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(216, 201, 138, 0.85)';
-    ctx.fillText(title.toUpperCase(), c.width / 2, boxY + 62);
-  }
-
-  const tex = new _T.CanvasTexture(c);
-  tex.colorSpace = _T.SRGBColorSpace;
-  const mat = new _T.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
-  const sprite = new _T.Sprite(mat);
-  sprite.scale.set(2.2, 0.55, 1);
-  sprite.position.y = 2.4;
-  sprite.renderOrder = 999;
-  return sprite;
-}
-
-/* ============================================================
-   MODEL CLONING HELPERS
-   ============================================================ */
-function cloneModel(source) {
-  if (!source) return null;
-  if (_SU) {
-    try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
-  }
-  try {
-    const isSkinned = (() => { let s = false; source.traverse(o => { if (o.isSkinnedMesh) s = true; }); return s; })();
-    if (!isSkinned) return source.clone(true);
-  } catch (e) { console.warn('clone fallback failed', e); }
-  return null;
-}
-
-function tintClone(obj, hue) {
-  const col = new _T.Color().setHSL(hue, 0.35, 0.88);
-  obj.traverse(o => {
-    if (!o.isMesh) return;
-    o.castShadow = true;
-    o.receiveShadow = true;
-    if (Array.isArray(o.material)) {
-      o.material = o.material.map(m => {
-        if (!m) return m;
-        const c = m.clone();
-        if (c.color) c.color.multiply(col);
-        return c;
-      });
-    } else if (o.material) {
-      const c = o.material.clone();
-      if (c.color) c.color.multiply(col);
-      o.material = c;
-    }
-  });
-}
-
-/* ============================================================
-   ASSET LOADING
-   ============================================================ */
-function expand(ps) {
-  const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
-  for (const p of ps) {
-    if (/\.(png|jpe?g|webp)$/i.test(p)) out.push(p);
-    else for (const x of e) out.push(p + x);
-  }
-  return out;
-}
-
-function firstTex(ps) {
-  return new Promise(res => {
-    const ld = new _T.TextureLoader(), list = expand(ps);
-    let i = 0;
-    const next = () => {
-      if (i >= list.length) return res(null);
-      ld.load(list[i++], t => {
-        t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
-        t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
-      }, undefined, next);
-    };
-    next();
-  });
-}
-
-async function firstModel(paths) {
-  for (const url of paths) {
-    const ext = url.split('.').pop().toLowerCase();
-    try {
-      if (ext === 'fbx' && _FL) {
-        const obj = await _FL.loadAsync(url);
-        return { object: obj, animations: [] };
+    let loadPct = 0;
+    function setLoad(pct, label) {
+      loadPct = Math.max(loadPct, Math.min(100, pct));
+      fillEl.style.width = loadPct + '%';
+      if (label) statusEl.textContent = label;
+      if (loadPct >= 100) {
+        setTimeout(() => {
+          loaderEl.classList.add('hidden');
+          setTimeout(() => { if (loaderEl.parentNode) loaderEl.remove(); }, 700);
+        }, 220);
       }
-      if ((ext === 'glb' || ext === 'gltf') && _GL) {
-        const g = await _GL.loadAsync(url);
-        return { object: g.scene, animations: g.animations || [] };
+    }
+    const yieldFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+
+    /* ============================================================
+       MODULE LOADING
+       ============================================================ */
+    setLoad(3, 'loading three.js…');
+    const TMO = 10000;
+    const _ti = (u) => Promise.race([
+      import(u),
+      new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
+    ]);
+    async function _ta(urls) {
+      for (const u of urls) { try { return await _ti(u); } catch (e) {} }
+      return null;
+    }
+
+    const _T = await _ta([
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+      'https://esm.sh/three@0.160.0/build/three.module.js',
+      'https://unpkg.com/three@0.160.0/build/three.module.js',
+    ]);
+    if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load failed'); }
+    setLoad(15, 'loading loaders…');
+    await yieldFrame();
+
+    let _GL = null, _FL = null, _SU = null;
+    try { const m = await _ta([
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+      'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+    ]); if (m) _GL = m.GLTFLoader; } catch (e) {}
+    setLoad(22, 'loading loaders…');
+    await yieldFrame();
+    try { const m = await _ta([
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+      'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+    ]); if (m) _FL = m.FBXLoader; } catch (e) {}
+    setLoad(28, 'loading cloner…');
+    await yieldFrame();
+    try { const m = await _ta([
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+      'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+    ]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
+    setLoad(30, 'building scene…');
+    await yieldFrame();
+
+    /* ============================================================
+       SETUP
+       ============================================================ */
+    const C = _T.MathUtils.clamp;
+    const stage = document.getElementById('stage');
+    const R = new _T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    R.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    R.shadowMap.enabled = true;
+    R.shadowMap.type = _T.PCFSoftShadowMap;
+    R.outputColorSpace = _T.SRGBColorSpace;
+    R.toneMapping = _T.ACESFilmicToneMapping;
+    stage.appendChild(R.domElement);
+
+    const scene = new _T.Scene();
+    scene.background = new _T.Color(0xb9a44e);
+    scene.fog = new _T.Fog(0xb9a44e, 10, 50);
+
+    const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
+
+    /* ============================================================
+       PROCEDURAL TEXTURES (walls / floor / ceiling)
+       ============================================================ */
+    function tex(w, h, draw) {
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      draw(c.getContext('2d'), w, h);
+      const t = new _T.CanvasTexture(c);
+      t.colorSpace = _T.SRGBColorSpace;
+      t.wrapS = t.wrapT = _T.RepeatWrapping; t.anisotropy = 4;
+      return t;
+    }
+
+    setLoad(36, 'painting walls…');
+    await yieldFrame();
+
+    const wallTex = tex(512, 512, (ctx, w, h) => {
+      ctx.fillStyle = '#c4b06a'; ctx.fillRect(0, 0, w, h);
+      for (let x = 0; x < w; x += 32) {
+        ctx.fillStyle = 'rgba(255,248,200,.05)'; ctx.fillRect(x, 0, 16, h);
+        ctx.fillStyle = 'rgba(60,45,12,.05)'; ctx.fillRect(x + 16, 0, 16, h);
       }
-    } catch (e) {
-      console.warn('Failed to load model at:', url, e);
-    }
-  }
-  return null;
-}
-
-function fit(obj, height) {
-  obj.updateMatrixWorld(true);
-  let b = new _T.Box3().setFromObject(obj), s = new _T.Vector3(); b.getSize(s);
-  if (s.y > 1e-5) { obj.scale.multiplyScalar(height / s.y); obj.updateMatrixWorld(true); b = new _T.Box3().setFromObject(obj); }
-  const c = new _T.Vector3(); b.getCenter(c);
-  obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b.min.y;
-  return obj;
-}
-
-function prep(obj, fbTex) {
-  obj.traverse(o => {
-    if (!o.isMesh) return;
-    o.castShadow = true; o.receiveShadow = true;
-    const ms = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of ms) {
-      if (!m) continue;
-      // Apply external texture if provided, even when a blank map exists
-      if (fbTex && 'map' in m) {
-        m.map = fbTex;
-        if (m.color) m.color.setHex(0xffffff);
-        m.needsUpdate = true;
+      const img = ctx.getImageData(0, 0, w, h), d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+      ctx.putImageData(img, 0, 0);
+      for (let i = 0; i < 30; i++) {
+        const x = Math.random() * w, y = Math.random() * h, r = 20 + Math.random() * 85;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(110,82,28,${.05 + Math.random() * .1})`);
+        g.addColorStop(1, 'rgba(110,82,28,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
-      if ('roughness' in m) m.roughness = Math.min(1, m.roughness ?? .9);
-    }
-  });
-}
+      const bh = h * .05;
+      ctx.fillStyle = '#6e5a35'; ctx.fillRect(0, h - bh, w, bh);
+      ctx.fillStyle = 'rgba(255,240,180,.14)'; ctx.fillRect(0, h - bh, w, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
+    });
 
-let themeEl = null;
-function loadAudio(url, onProgress) {
-  return new Promise(res => {
-    const a = new Audio();
-    a.preload = 'auto'; a.loop = true; a.volume = 0;
-    let done = false;
-    const finish = (ok) => { if (done) return; done = true; res(ok ? a : null); };
-    a.addEventListener('canplaythrough', () => finish(true), { once: true });
-    a.addEventListener('loadeddata', () => { if (onProgress) onProgress(); }, { once: true });
-    a.addEventListener('error', () => finish(false), { once: true });
-    a.src = url;
-    setTimeout(() => { if (!done && a.readyState >= 2) finish(true); }, 3500);
-    setTimeout(() => { if (!done) finish(false); }, 6000);
-  });
-}
+    setLoad(44, 'painting floor…');
+    await yieldFrame();
 
-async function loadAllAssets() {
-  setLoad(78, 'loading figure model…'); await yieldFrame();
-  
-  const playerPath = './assets/player.fbx';
-  const [vM, vT] = await Promise.all([
-    firstModel([playerPath, './assets/player.glb', './assets/player.gltf']),
-    firstTex(['./assets/texters/player/player', './assets/texters/player/texture'])
-  ]);
-  setLoad(84, 'applying figure…'); await yieldFrame();
-  if (vM) {
-    const m = fit(vM.object, playerModelHeight); prep(m, vT);
-    if (vRig) { viewerVis.remove(vRig.root); vRig = null; }
-    viewerVis.add(m);
-    playerModelTemplate = m;
-    playerModelAnimations = vM.animations || [];
-    if (vM.animations.length) {
-      vMix = new _T.AnimationMixer(m);
-      const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
-      if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
-    }
-  } else if (vRig) {
-    if (!viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
-  }
-
-  setLoad(88, 'loading entity model…'); await yieldFrame();
-  const [eM, eT] = await Promise.all([
-    firstModel([
-      './assets/entaty.glb', './assets/entaty.gltf',
-      './assets/entity.glb', './assets/entity.gltf',
-      './assets/entaty.fbx', './assets/entity.fbx'
-    ]),
-    firstTex([
-      './assets/texters/entaty/entaty',
-      './assets/texters/entaty/texture',
-      './assets/texters/entity/entity',
-      './assets/texters/entity/texture'
-    ])
-  ]);
-  setLoad(93, 'applying entity…'); await yieldFrame();
-  if (eM) {
-    const m = fit(eM.object, entityModelHeight); prep(m, eT);
-    entityModelTemplate = m;
-    entityModelAnimations = eM.animations || [];
-    if (eM.animations.length) {
-      const rc = eM.animations.find(c => /run|walk|move/i.test(c.name)) || eM.animations[0];
-      entityModelWalkClip = rc || null;
-    }
-    console.log("Entity model loaded successfully.");
-  } else {
-    console.warn("Entity model not loaded — using fallback rig for Clarks.");
-  }
-
-  setLoad(96, 'loading theme…'); await yieldFrame();
-  themeEl = await loadAudio('./assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
-  setLoad(99, 'finishing…'); await yieldFrame();
-  setLoad(100, 'ready');
-}
-
-/* ============================================================
-   STATE
-   ============================================================ */
-const vPos = new _T.Vector3(0, 0, 0);
-
-let oYaw = 0, oPitch = 0.18, oDist = 8.5;
-let tYaw = 0, tPitch = 0.18, tDist = 8.5;
-
-let holding = false;
-let isSprinting = false;
-
-const WALK_SPEED = 9.0;
-const SPRINT_SPEED = 16.0;
-const vHeading = { y: Math.PI };
-
-const MON_ACCEL   = 55;
-const MON_MAXSPD  = 14.5;
-const MON_FRICTION = 0.35;
-const MON_TURN     = 3.0;
-
-/* ---- Multiple Clarks ---- */
-const MAX_CLARKS = 12;
-const clarks = [];   
-
-let clarkImmunity = false;
-
-function makeClarkId() {
-  return 'c' + Math.random().toString(36).slice(2, 9);
-}
-
-function spawnClark(x, z) {
-  if (clarks.length >= MAX_CLARKS) return null;
-
-  let root = null;
-  let mixer = null;
-  let fallbackRig = null;
-
-  const cloned = cloneModel(entityModelTemplate);
-  if (cloned) {
-    root = new _T.Group();
-    root.add(cloned);
-    if (entityModelWalkClip) {
-      try {
-        mixer = new _T.AnimationMixer(cloned);
-        const act = mixer.clipAction(entityModelWalkClip);
-        act.play();
-        act.time = Math.random() * act.getClip().duration;
-      } catch (e) { mixer = null; }
-    }
-  } else {
-    fallbackRig = buildClarkFallbackRig();
-    root = fallbackRig.root;
-  }
-
-  const id = makeClarkId();
-  if (x == null || z == null) {
-    do {
-      x = (Math.random() - 0.5) * (MS - 20);
-      z = (Math.random() - 0.5) * (MS - 20);
-    } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
-  }
-
-  const heading = Math.random() * Math.PI * 2;
-  root.position.set(x, 0, z);
-  root.rotation.y = heading;
-  clarkGroup.add(root);
-
-  const c = {
-    id,
-    pos: new _T.Vector3(x, 0, z),
-    vel: new _T.Vector3(0, 0, 0),
-    heading,
-    phase: Math.random() * Math.PI * 2,
-    spd: 0,
-    root,
-    mixer,
-    fallbackRig,
-  };
-  clarks.push(c);
-  updateClarkCountUI();
-  return c;
-}
-
-function removeClark(id) {
-  const i = clarks.findIndex(c => c.id === id);
-  if (i < 0) return;
-  const c = clarks[i];
-  if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
-  clarkGroup.remove(c.root);
-  clarks.splice(i, 1);
-  updateClarkCountUI();
-}
-
-function removeLastClark() {
-  if (!clarks.length) return;
-  removeClark(clarks[clarks.length - 1].id);
-}
-
-function clearAllClarks() {
-  while (clarks.length) {
-    const c = clarks.pop();
-    if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
-    clarkGroup.remove(c.root);
-  }
-  updateClarkCountUI();
-}
-
-function addClarkRandom() {
-  if (clarks.length >= MAX_CLARKS) return;
-  spawnClark();
-}
-
-function resetAllClarks() {
-  clarks.forEach(c => {
-    let x, z;
-    do {
-      x = (Math.random() - 0.5) * (MS - 20);
-      z = (Math.random() - 0.5) * (MS - 20);
-    } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
-    c.pos.set(x, 0, z);
-    c.vel.set(0, 0, 0);
-    c.heading = Math.random() * Math.PI * 2;
-  });
-}
-
-function updateClarkCountUI() {
-  const el = document.getElementById('clark-count');
-  if (el) el.textContent = 'Clarks: ' + clarks.length + ' / ' + MAX_CLARKS;
-}
-
-let nWall = [], nTimer = 0;
-function refreshNear() {
-  const R2 = 15; nWall.length = 0;
-  for (const w of boxes) {
-    if (vPos.x > w.minX - R2 && vPos.x < w.maxX + R2 &&
-        vPos.z > w.minZ - R2 && vPos.z < w.maxZ + R2) nWall.push(w);
-  }
-}
-
-function resolve(pos, rad, vel) {
-  for (let it = 0; it < 3; it++) {
-    let hit = false;
-    for (const w of boxes) {
-      if (pos.x < w.minX - rad || pos.x > w.maxX + rad ||
-          pos.z < w.minZ - rad || pos.z > w.maxZ + rad) continue;
-      const cx = pos.x < w.minX ? w.minX : (pos.x > w.maxX ? w.maxX : pos.x);
-      const cz = pos.z < w.minZ ? w.minZ : (pos.z > w.maxZ ? w.maxZ : pos.z);
-      const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
-      if (d2 >= rad * rad) continue;
-      hit = true;
-      let nx = 0, nz = 0;
-      if (d2 > 1e-9) {
-        const d = Math.sqrt(d2), push = (rad - d) / d;
-        pos.x += dx * push; pos.z += dz * push;
-        nx = dx / d; nz = dz / d;
-      } else {
-        const dl = pos.x - w.minX, dr = w.maxX - pos.x, dt = pos.z - w.minZ, db = w.maxZ - pos.z;
-        const m = Math.min(dl, dr, dt, db);
-        if (m === dl) { pos.x = w.minX - rad; nx = -1; }
-        else if (m === dr) { pos.x = w.maxX + rad; nx = 1; }
-        else if (m === dt) { pos.z = w.minZ - rad; nz = -1; }
-        else { pos.z = w.maxZ + rad; nz = 1; }
+    const floorTex = tex(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#9a8738'; ctx.fillRect(0, 0, w, h);
+      const img = ctx.getImageData(0, 0, w, h), d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 44; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+      ctx.putImageData(img, 0, 0);
+      for (let i = 0; i < 900; i++) {
+        const x = Math.random() * w, y = Math.random() * h, l = 2 + Math.random() * 4, a = Math.random() * Math.PI;
+        ctx.strokeStyle = `rgba(${60 + Math.random() * 90},${55 + Math.random() * 80},${15 + Math.random() * 40},${.12 + Math.random() * .2})`;
+        ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
       }
-      if (vel) {
-        const dot = vel.x * nx + vel.z * nz;
-        if (dot < 0) {
-          vel.x -= dot * nx; vel.z -= dot * nz;
-          vel.x *= 0.98; vel.z *= 0.98;
+      for (let i = 0; i < 22; i++) {
+        const x = Math.random() * w, y = Math.random() * h, r = 12 + Math.random() * 52;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(50,38,12,${.08 + Math.random() * .14})`);
+        g.addColorStop(1, 'rgba(50,38,12,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    setLoad(51, 'painting ceiling…');
+    await yieldFrame();
+
+    const ceilTex = tex(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#d3caa0'; ctx.fillRect(0, 0, w, h);
+      const t = w / 2;
+      for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
+        ctx.fillStyle = `rgba(${180 + Math.random() * 30},${170 + Math.random() * 30},${120 + Math.random() * 40},.22)`;
+        ctx.fillRect(tx * t + 3, ty * t + 3, t - 6, t - 6);
+        for (let i = 0; i < 40; i++) {
+          ctx.fillStyle = 'rgba(90,80,45,.16)';
+          ctx.beginPath();
+          ctx.arc(tx * t + 8 + Math.random() * (t - 16), ty * t + 8 + Math.random() * (t - 16), 1 + Math.random() * 1.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.strokeStyle = 'rgba(80,70,38,.5)'; ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, w, h);
+      ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
+    });
+
+    setLoad(58, 'placing lights…');
+    await yieldFrame();
+
+    /* ============================================================
+       LIGHTS
+       ============================================================ */
+    scene.add(new _T.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
+    const key = new _T.DirectionalLight(0xfff4cc, 1.35);
+    key.position.set(4, 12, 4); key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0012;
+    const sc = key.shadow.camera;
+    sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 50;
+    scene.add(key); scene.add(key.target);
+    const focus = new _T.PointLight(0xffe8a8, 14, 15, 2);
+    scene.add(focus);
+
+    setLoad(64, 'raising walls…');
+    await yieldFrame();
+
+    /* ============================================================
+       MAP
+       ============================================================ */
+    const WH = 6.0, WT = 0.6, MS = 120;
+    const boxes = [];
+
+    function wall(x, z, w, d) {
+      const m = new _T.Mesh(
+        new _T.BoxGeometry(w, WH, d),
+        new _T.MeshStandardMaterial({ map: wallTex, roughness: .95 })
+      );
+      m.position.set(x, WH / 2, z);
+      m.castShadow = true; m.receiveShadow = true;
+      scene.add(m);
+      boxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+    }
+
+    wall(0, -MS/2, MS, WT);
+    wall(0, MS/2, MS, WT);
+    wall(-MS/2, 0, WT, MS);
+    wall(MS/2, 0, WT, MS);
+
+    for (let x = -MS/2 + 10; x < MS/2 - 10; x += 20) {
+      for (let z = -MS/2 + 10; z < MS/2 - 10; z += 20) {
+        if (Math.hypot(x, z) < 10) continue;
+        const r = Math.random();
+        if (r < 0.3) {
+          wall(x, z, 8, 1); wall(x - 3.5, z - 3.5, 1, 8);
+        } else if (r < 0.6) {
+          wall(x, z, 10, 1.5); wall(x, z, 1.5, 10);
+        } else if (r < 0.8) {
+          wall(x, z, 12, 1); wall(x + 6, z + 6, 1, 12);
+        } else {
+          wall(x-2, z-2, 2, 2); wall(x+2, z-2, 2, 2);
+          wall(x-2, z+2, 2, 2); wall(x+2, z+2, 2, 2);
         }
       }
     }
-    if (!hit) break;
-  }
-}
 
-function camLimit(target, dir, maxD) {
-  const step = .2, pad = .2;
-  for (let d = .5; d <= maxD; d += step) {
-    const px = target.x + dir.x * d, py = target.y + dir.y * d, pz = target.z + dir.z * d;
-    if (py < .22 || py > WH - .18) return Math.max(d - step, .4);
-    for (const w of nWall) {
-      if (px > w.minX - pad && px < w.maxX + pad && pz > w.minZ - pad && pz < w.maxZ + pad) {
-        return Math.max(d - step, .4);
+    const fl = new _T.Mesh(
+      new _T.PlaneGeometry(MS * 2, MS * 2),
+      new _T.MeshStandardMaterial({ map: floorTex, roughness: 1 })
+    );
+    fl.rotation.x = -Math.PI / 2; fl.receiveShadow = true; scene.add(fl);
+
+    const ce = new _T.Mesh(
+      new _T.PlaneGeometry(MS * 2, MS * 2),
+      new _T.MeshStandardMaterial({ map: ceilTex, roughness: 1, side: _T.DoubleSide })
+    );
+    ce.rotation.x = Math.PI / 2; ce.position.y = WH; ce.receiveShadow = true; scene.add(ce);
+
+    const lm = new _T.MeshBasicMaterial({ color: 0xfff6c4 });
+    for (let x = -40; x <= 40; x += 20) {
+      for (let z = -40; z <= 40; z += 20) {
+        const p = new _T.Mesh(new _T.PlaneGeometry(2.5, 2.5), lm);
+        p.rotation.x = Math.PI / 2; p.position.set(x, WH - 0.02, z); scene.add(p);
       }
     }
-  }
-  return maxD;
-}
 
-/* ============================================================
-   AUTH — boblox.users
-   ============================================================ */
-const USERS_KEY = 'boblox.users';
-let myUser = null;
-let joined = false;
+    setLoad(72, 'building figures…');
+    await yieldFrame();
 
-function loadBobloxUsers() {
-  let raw;
-  try { raw = localStorage.getItem(USERS_KEY); } catch (e) { raw = null; }
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const users = {};
-    Object.keys(parsed).forEach(k => {
-      const rec = parsed[k];
-      if (rec && typeof rec === 'object') users[k] = rec;
-    });
-    return users;
-  } catch (e) {
-    return {};
-  }
-}
-
-function showLogin() {
-  const users = loadBobloxUsers();
-  const list = document.getElementById('user-list');
-  list.innerHTML = '';
-  const nicks = Object.keys(users).sort();
-
-  if (nicks.length === 0) {
-    const empty = document.createElement('div');
-    empty.id = 'user-empty';
-    empty.textContent = 'No users found in boblox.users — try a guest name below.';
-    list.appendChild(empty);
-  } else {
-    nicks.forEach(nick => {
-      const rec = users[nick] || {};
-      const title = typeof rec.title === 'string' ? rec.title : 'Explorer';
-      const btn = document.createElement('button');
-      btn.className = 'user-btn';
-      const n = document.createElement('span'); n.className = 'user-nick'; n.textContent = nick;
-      const t = document.createElement('span'); t.className = 'user-title'; t.textContent = title;
-      btn.appendChild(n); btn.appendChild(t);
-      btn.addEventListener('click', () => startGame(nick, title));
-      list.appendChild(btn);
-    });
-  }
-  document.getElementById('login').style.display = 'flex';
-}
-
-document.getElementById('new-btn').addEventListener('click', () => {
-  const nick = document.getElementById('new-nick').value.trim().slice(0, 16);
-  if (!nick) return;
-  startGame(nick, 'Guest');
-});
-document.getElementById('new-nick').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('new-btn').click();
-});
-
-/* ============================================================
-   MULTIPLAYER NETWORKING
-   ============================================================ */
-const ROOM_ID = 'spatial-walk-mp-v4';
-
-let peer = null;
-let role = null;
-let hostConn = null;
-let guests = [];
-let myId = null;
-let hostId = null;
-let netAccum = 0;
-let retryLock = false;
-
-const allPlayers = new Map();      
-const remotePlayers = new Map();   
-const remoteAvatars = new Map();   
-const clarkTargets = new Map();    
-
-const chatHistory = [];
-const MAX_CHAT = 50;
-
-function setHudStatus(text) {
-  const el = document.getElementById('hud-status');
-  if (el) el.textContent = text;
-}
-
-function updateOnlineCount() {
-  const total = (role === 'host') ? allPlayers.size : (remotePlayers.size + 1);
-  if (role === 'host') setHudStatus('● hosting · ' + total + ' online');
-  else if (role === 'guest') setHudStatus('● joined · ' + total + ' online');
-  else setHudStatus('○ idle');
-}
-
-function initNet() {
-  destroyPeer();
-  clearAllAvatars();
-  allPlayers.clear();
-  remotePlayers.clear();
-  clarkTargets.clear();
-  setHudStatus('○ connecting…');
-
-  const p = new Peer(ROOM_ID, { debug: 0 });
-  peer = p;
-
-  p.on('open', (id) => {
-    if (peer !== p) return;
-    myId = id;
-    hostId = id;
-    role = 'host';
-    allPlayers.set(myId, {
-      nick: myUser.nick, title: myUser.title,
-      x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0,
-      isHost: true,
-    });
-    updateOnlineCount();
-    appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
-  });
-
-  p.on('connection', onGuest);
-
-  p.on('error', (err) => {
-    if (peer !== p) return;
-    if (err && err.type === 'unavailable-id') {
-      destroyPeer();
-      joinAsGuest();
-    } else if (err && err.type === 'network') {
-      scheduleRetry();
-    }
-  });
-
-  p.on('disconnected', () => {
-    try { p.reconnect(); } catch (e) {}
-  });
-}
-
-function joinAsGuest() {
-  destroyPeer();
-  clearAllAvatars();
-  allPlayers.clear();
-  remotePlayers.clear();
-  clarkTargets.clear();
-  setHudStatus('○ joining…');
-
-  const p = new Peer({ debug: 0 });
-  peer = p;
-
-  p.on('open', (id) => {
-    if (peer !== p) return;
-    myId = id;
-    const conn = p.connect(ROOM_ID, { reliable: true });
-    hostConn = conn;
-
-    conn.on('open', () => {
-      if (peer !== p) return;
-      role = 'guest';
-      updateOnlineCount();
-      appendChat({ system: true, text: 'Joined the room as ' + myUser.nick + '.' });
-      sendGuestUpdate();
-    });
-
-    conn.on('data', handleFromHost);
-    conn.on('close', () => { if (peer === p) scheduleRetry(); });
-    conn.on('error', () => { if (peer === p) scheduleRetry(); });
-  });
-
-  p.on('error', () => { if (peer === p) scheduleRetry(); });
-  p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
-}
-
-function onGuest(conn) {
-  guests.push(conn);
-
-  const players = {};
-  allPlayers.forEach((p, id) => { players[id] = p; });
-  players[myId] = {
-    nick: myUser.nick, title: myUser.title,
-    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0, isHost: true,
-  };
-
-  try {
-    conn.send({
-      type: 'tick',
-      hostId: myId,
-      clarks: clarks.map(serializeClark),
-      clarkImmunity,
-      players,
-    });
-  } catch (e) {}
-
-  chatHistory.forEach(m => {
-    try { conn.send({ type: 'chat', ...m }); } catch (e) {}
-  });
-
-  conn.on('data', (msg) => handleFromGuest(msg, conn));
-
-  const drop = () => {
-    guests = guests.filter(g => g !== conn);
-    allPlayers.delete(conn.peer);
-    remotePlayers.delete(conn.peer);
-    removeRemotePlayer(conn.peer);
-    updateOnlineCount();
-  };
-  conn.on('close', drop);
-  conn.on('error', drop);
-
-  updateOnlineCount();
-}
-
-function serializeClark(c) {
-  return {
-    id: c.id,
-    x: c.pos.x, y: c.pos.y, z: c.pos.z,
-    rot: c.heading,
-    spd: c.spd,
-  };
-}
-
-function handleFromGuest(msg, conn) {
-  if (!msg || !msg.type) return;
-
-  if (msg.type === 'update') {
-    const data = {
-      nick: msg.nick || 'Guest',
-      title: msg.title || 'Guest',
-      x: msg.x, y: msg.y, z: msg.z, rot: msg.rot,
-      spd: msg.spd, isHost: false,
+    /* ============================================================
+       FIGURE RIGS (fallback)
+       ============================================================ */
+    const mkBox = (w, h, d, mat) => {
+      const m = new _T.Mesh(new _T.BoxGeometry(w, h, d), mat);
+      m.castShadow = true; m.receiveShadow = true; return m;
     };
-    const prev = allPlayers.get(conn.peer);
-    if (!prev) {
-      allPlayers.set(conn.peer, data);
-      remotePlayers.set(conn.peer, data);
-      ensureRemoteAvatar(conn.peer, data);
-      updateOnlineCount();
-    } else {
-      Object.assign(prev, data);
-      const rp = remotePlayers.get(conn.peer);
-      if (rp) Object.assign(rp, data);
-      else remotePlayers.set(conn.peer, data);
+
+    const viewer = new _T.Group(); scene.add(viewer);
+    const viewerVis = new _T.Group(); viewer.add(viewerVis);
+
+    const clarkGroup = new _T.Group(); scene.add(clarkGroup);
+
+    let vRig = null, vMix = null;
+    let localLabelSprite = null;
+
+    let playerModelTemplate = null;
+    let playerModelAnimations = [];
+    let playerModelIdleClip = null;
+    let playerModelHeight = 1.85;
+
+    let entityModelTemplate = null;
+    let entityModelAnimations = [];
+    let entityModelWalkClip = null;
+    let entityModelHeight = 2.2;
+
+    function buildVRig() {
+      const root = new _T.Group();
+      const sk = new _T.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
+      const sh = new _T.MeshStandardMaterial({ color: 0x2f6fbf, roughness: .9 });
+      const pn = new _T.MeshStandardMaterial({ color: 0x3f6f3f, roughness: .9 });
+      const to = mkBox(.7, .7, .36, sh); to.position.y = 1.05; root.add(to);
+      const hd = mkBox(.42, .42, .42, sk); hd.position.y = 1.62; root.add(hd);
+      const lb = (x, y, w, h, d, mat) => {
+        const p = new _T.Group(); p.position.set(x, y, 0);
+        const m = mkBox(w, h, d, mat); m.position.y = -h / 2; p.add(m); root.add(p); return p;
+      };
+      return { root,
+        armL: lb(-.49, 1.4, .24, .66, .24, sk), armR: lb(.49, 1.4, .24, .66, .24, sk),
+        legL: lb(-.17, .7, .27, .7, .3, pn), legR: lb(.17, .7, .27, .7, .3, pn) };
     }
-  } else if (msg.type === 'chat') {
-    const cm = { nick: msg.nick, title: msg.title, text: msg.text };
-    appendChat(cm);
-    chatHistory.push(cm);
-    if (chatHistory.length > MAX_CHAT) chatHistory.shift();
-    broadcastToGuests({ type: 'chat', ...cm }, conn);
-  }
-}
 
-function handleFromHost(msg) {
-  if (!msg || !msg.type) return;
+    function buildClarkFallbackRig() {
+      const root = new _T.Group();
+      const su = new _T.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
+      const sk = new _T.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
+      const ey = new _T.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
+      const ll = 1.0;
+      const lL = new _T.Group(); lL.position.set(-.2, 1.0, 0); root.add(lL);
+      const lLM = mkBox(.25, ll, .25, su); lLM.position.y = -ll/2; lL.add(lLM);
+      const lR = new _T.Group(); lR.position.set(.2, 1.0, 0); root.add(lR);
+      const lRM = mkBox(.25, ll, .25, su); lRM.position.y = -ll/2; lR.add(lRM);
+      const to = mkBox(.65, .9, .35, su); to.position.y = 1.5; root.add(to);
+      const hd = mkBox(.4, .4, .4, sk); hd.position.y = 2.15; root.add(hd);
+      const eL = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eL.position.set(-.1, 2.2, .21); root.add(eL);
+      const eR = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eR.position.set(.1, 2.2, .21); root.add(eR);
+      const aL = new _T.Group(); aL.position.set(-.4, 1.8, 0); root.add(aL);
+      const aLM = mkBox(.15, .9, .15, su); aLM.position.y = -.45; aL.add(aLM);
+      const aR = new _T.Group(); aR.position.set(.4, 1.8, 0); root.add(aR);
+      const aRM = mkBox(.15, .9, .15, su); aRM.position.y = -.45; aR.add(aRM);
+      return { root, armL: aL, armR: aR, legL: lL, legR: lR };
+    }
 
-  if (msg.type === 'tick') {
-    if (msg.hostId) hostId = msg.hostId;
-    if (typeof msg.clarkImmunity === 'boolean') clarkImmunity = msg.clarkImmunity;
+    vRig = buildVRig(); viewerVis.add(vRig.root);
 
-    if (Array.isArray(msg.clarks)) {
-      const seen = new Set();
-      msg.clarks.forEach(sc => {
-        seen.add(sc.id);
-        let c = clarks.find(x => x.id === sc.id);
-        if (!c) {
-          const created = spawnClark(sc.x, sc.z);
-          if (created) {
-            created.id = sc.id;
-            c = created;
+    /* ============================================================
+       NAME LABELS
+       ============================================================ */
+    function makeLabel(nick, title, color, isHost) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 128;
+      const ctx = c.getContext('2d');
+
+      const hasTitle = title && title.length > 0;
+      const boxH = hasTitle ? 88 : 56;
+      const boxY = (c.height - boxH) / 2;
+
+      ctx.fillStyle = 'rgba(13, 10, 5, 0.82)';
+      ctx.fillRect(0, boxY, c.width, boxH);
+      ctx.strokeStyle = isHost ? 'rgba(255, 153, 85, 0.85)' : 'rgba(224, 200, 106, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, boxY + 1, c.width - 2, boxH - 2);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const nameY = boxY + (hasTitle ? 30 : boxH / 2);
+
+      let textOffsetX = 0;
+      if (isHost) {
+        const cx = c.width / 2 - 90;
+        const cy = nameY - 12;
+        ctx.save();
+        ctx.fillStyle = '#ff9955';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + 16);
+        ctx.lineTo(cx + 4, cy + 4);
+        ctx.lineTo(cx + 10, cy + 10);
+        ctx.lineTo(cx + 16, cy);
+        ctx.lineTo(cx + 22, cy + 10);
+        ctx.lineTo(cx + 28, cy + 4);
+        ctx.lineTo(cx + 32, cy + 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        textOffsetX = 20;
+      }
+
+      ctx.font = 'bold 38px system-ui, sans-serif';
+      ctx.fillStyle = color || '#fff5d2';
+      ctx.fillText(nick, c.width / 2 + textOffsetX, nameY);
+
+      if (hasTitle) {
+        ctx.font = '22px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(216, 201, 138, 0.85)';
+        ctx.fillText(title.toUpperCase(), c.width / 2, boxY + 62);
+      }
+
+      const tex = new _T.CanvasTexture(c);
+      tex.colorSpace = _T.SRGBColorSpace;
+      const mat = new _T.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      const sprite = new _T.Sprite(mat);
+      sprite.scale.set(2.2, 0.55, 1);
+      sprite.position.y = 2.4;
+      sprite.renderOrder = 999;
+      return sprite;
+    }
+
+    /* ============================================================
+       MODEL CLONING HELPERS
+       ============================================================ */
+    function cloneModel(source) {
+      if (!source) return null;
+      if (_SU) {
+        try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
+      }
+      try {
+        const isSkinned = (() => { let s = false; source.traverse(o => { if (o.isSkinnedMesh) s = true; }); return s; })();
+        if (!isSkinned) return source.clone(true);
+      } catch (e) { console.warn('clone fallback failed', e); }
+      return null;
+    }
+
+    function tintClone(obj, hue) {
+      const col = new _T.Color().setHSL(hue, 0.35, 0.88);
+      obj.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true;
+        o.receiveShadow = true;
+        if (Array.isArray(o.material)) {
+          o.material = o.material.map(m => {
+            if (!m) return m;
+            const c = m.clone();
+            if (c.color) c.color.multiply(col);
+            return c;
+          });
+        } else if (o.material) {
+          const c = o.material.clone();
+          if (c.color) c.color.multiply(col);
+          o.material = c;
+        }
+      });
+    }
+
+    /* ============================================================
+       ASSET LOADING
+       ============================================================ */
+    function expand(ps) {
+      const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
+      for (const p of ps) {
+        if (/\.(png|jpe?g|webp)$/i.test(p)) out.push(p);
+        else for (const x of e) out.push(p + x);
+      }
+      return out;
+    }
+
+    function firstTex(ps) {
+      return new Promise(res => {
+        const ld = new _T.TextureLoader(), list = expand(ps);
+        let i = 0;
+        const next = () => {
+          if (i >= list.length) return res(null);
+          ld.load(list[i++], t => {
+            t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
+            t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
+          }, undefined, next);
+        };
+        next();
+      });
+    }
+
+    async function firstModel(paths) {
+      for (const url of paths) {
+        const ext = url.split('.').pop().toLowerCase();
+        try {
+          if (ext === 'fbx' && _FL) {
+            const obj = await _FL.loadAsync(url);
+            return { object: obj, animations: [] };
+          }
+          if ((ext === 'glb' || ext === 'gltf') && _GL) {
+            const g = await _GL.loadAsync(url);
+            return { object: g.scene, animations: g.animations || [] };
+          }
+        } catch (e) {
+          console.warn('Failed to load model at:', url, e);
+        }
+      }
+      return null;
+    }
+
+    function fit(obj, height) {
+      obj.updateMatrixWorld(true);
+      let b = new _T.Box3().setFromObject(obj), s = new _T.Vector3(); b.getSize(s);
+      if (s.y > 1e-5) { obj.scale.multiplyScalar(height / s.y); obj.updateMatrixWorld(true); b = new _T.Box3().setFromObject(obj); }
+      const c = new _T.Vector3(); b.getCenter(c);
+      obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b.min.y;
+      return obj;
+    }
+
+    function prep(obj, fbTex) {
+      obj.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of ms) {
+          if (!m) continue;
+          // Apply external texture if provided, even when a blank map exists
+          if (fbTex && 'map' in m) {
+            m.map = fbTex;
+            if (m.color) m.color.setHex(0xffffff);
+            m.needsUpdate = true;
+          }
+          if ('roughness' in m) m.roughness = Math.min(1, m.roughness ?? .9);
+        }
+      });
+    }
+
+    let themeEl = null;
+    function loadAudio(url, onProgress) {
+      return new Promise(res => {
+        const a = new Audio();
+        a.preload = 'auto'; a.loop = true; a.volume = 0;
+        let done = false;
+        const finish = (ok) => { if (done) return; done = true; res(ok ? a : null); };
+        a.addEventListener('canplaythrough', () => finish(true), { once: true });
+        a.addEventListener('loadeddata', () => { if (onProgress) onProgress(); }, { once: true });
+        a.addEventListener('error', () => finish(false), { once: true });
+        a.src = url;
+        setTimeout(() => { if (!done && a.readyState >= 2) finish(true); }, 3500);
+        setTimeout(() => { if (!done) finish(false); }, 6000);
+      });
+    }
+
+    async function loadAllAssets() {
+      setLoad(78, 'loading figure model…'); await yieldFrame();
+      
+      const playerPath = './assets/player.fbx';
+      const [vM, vT] = await Promise.all([
+        firstModel([playerPath, './assets/player.glb', './assets/player.gltf']),
+        firstTex(['./assets/texters/player/player', './assets/texters/player/texture'])
+      ]);
+      setLoad(84, 'applying figure…'); await yieldFrame();
+      if (vM) {
+        const m = fit(vM.object, playerModelHeight); prep(m, vT);
+        if (vRig) { viewerVis.remove(vRig.root); vRig = null; }
+        viewerVis.add(m);
+        playerModelTemplate = m;
+        playerModelAnimations = vM.animations || [];
+        if (vM.animations.length) {
+          vMix = new _T.AnimationMixer(m);
+          const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
+          if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
+        }
+      } else if (vRig) {
+        if (!viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
+      }
+
+      setLoad(88, 'loading entity model…'); await yieldFrame();
+      const [eM, eT] = await Promise.all([
+        firstModel([
+          './assets/entaty.glb', './assets/entaty.gltf',
+          './assets/entity.glb', './assets/entity.gltf',
+          './assets/entaty.fbx', './assets/entity.fbx'
+        ]),
+        firstTex([
+          './assets/texters/entaty/entaty',
+          './assets/texters/entaty/texture',
+          './assets/texters/entity/entity',
+          './assets/texters/entity/texture'
+        ])
+      ]);
+      setLoad(93, 'applying entity…'); await yieldFrame();
+      if (eM) {
+        const m = fit(eM.object, entityModelHeight); prep(m, eT);
+        entityModelTemplate = m;
+        entityModelAnimations = eM.animations || [];
+        if (eM.animations.length) {
+          const rc = eM.animations.find(c => /run|walk|move/i.test(c.name)) || eM.animations[0];
+          entityModelWalkClip = rc || null;
+        }
+        console.log("Entity model loaded successfully.");
+      } else {
+        console.warn("Entity model not loaded — using fallback rig for Clarks.");
+      }
+
+      setLoad(96, 'loading theme…'); await yieldFrame();
+      themeEl = await loadAudio('./assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
+      setLoad(99, 'finishing…'); await yieldFrame();
+      setLoad(100, 'ready');
+    }
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    const vPos = new _T.Vector3(0, 0, 0);
+
+    let oYaw = 0, oPitch = 0.18, oDist = 8.5;
+    let tYaw = 0, tPitch = 0.18, tDist = 8.5;
+
+    let holding = false;
+
+    // Sprint speed is now the normal speed (shift removed)
+    const MOVE_SPEED = 16.0; 
+    const vHeading = { y: Math.PI };
+
+    const MON_ACCEL   = 55;
+    const MON_MAXSPD  = 14.5;
+    const MON_FRICTION = 0.35;
+    const MON_TURN     = 3.0;
+    const MON_WANDER   = 0.6; // slight random movement
+
+    /* ---- Multiple Clarks ---- */
+    const MAX_CLARKS = 12;
+    const clarks = [];   
+
+    let clarkImmunity = false;
+
+    function makeClarkId() {
+      return 'c' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function spawnClark(x, z) {
+      if (clarks.length >= MAX_CLARKS) return null;
+
+      let root = null;
+      let mixer = null;
+      let fallbackRig = null;
+
+      const cloned = cloneModel(entityModelTemplate);
+      if (cloned) {
+        root = new _T.Group();
+        root.add(cloned);
+        if (entityModelWalkClip) {
+          try {
+            mixer = new _T.AnimationMixer(cloned);
+            const act = mixer.clipAction(entityModelWalkClip);
+            act.play();
+            act.time = Math.random() * act.getClip().duration;
+          } catch (e) { mixer = null; }
+        }
+      } else {
+        fallbackRig = buildClarkFallbackRig();
+        root = fallbackRig.root;
+      }
+
+      const id = makeClarkId();
+      if (x == null || z == null) {
+        do {
+          x = (Math.random() - 0.5) * (MS - 20);
+          z = (Math.random() - 0.5) * (MS - 20);
+        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+      }
+
+      const heading = Math.random() * Math.PI * 2;
+      root.position.set(x, 0, z);
+      root.rotation.y = heading;
+      clarkGroup.add(root);
+
+      const c = {
+        id,
+        pos: new _T.Vector3(x, 0, z),
+        vel: new _T.Vector3(0, 0, 0),
+        heading,
+        phase: Math.random() * Math.PI * 2,
+        spd: 0,
+        root,
+        mixer,
+        fallbackRig,
+        wanderAngle: Math.random() * Math.PI * 2, // for wandering
+        wanderTimer: 0,
+      };
+      clarks.push(c);
+      updateClarkCountUI();
+      return c;
+    }
+
+    function removeClark(id) {
+      const i = clarks.findIndex(c => c.id === id);
+      if (i < 0) return;
+      const c = clarks[i];
+      if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+      clarkGroup.remove(c.root);
+      clarks.splice(i, 1);
+      updateClarkCountUI();
+    }
+
+    function removeLastClark() {
+      if (!clarks.length) return;
+      removeClark(clarks[clarks.length - 1].id);
+    }
+
+    function clearAllClarks() {
+      while (clarks.length) {
+        const c = clarks.pop();
+        if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+        clarkGroup.remove(c.root);
+      }
+      updateClarkCountUI();
+    }
+
+    function addClarkRandom() {
+      if (clarks.length >= MAX_CLARKS) return;
+      spawnClark();
+    }
+
+    function resetAllClarks() {
+      clarks.forEach(c => {
+        let x, z;
+        do {
+          x = (Math.random() - 0.5) * (MS - 20);
+          z = (Math.random() - 0.5) * (MS - 20);
+        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+        c.pos.set(x, 0, z);
+        c.vel.set(0, 0, 0);
+        c.heading = Math.random() * Math.PI * 2;
+        c.wanderAngle = Math.random() * Math.PI * 2;
+        c.wanderTimer = 0;
+      });
+    }
+
+    function updateClarkCountUI() {
+      const el = document.getElementById('clark-count');
+      if (el) el.textContent = 'Clarks: ' + clarks.length + ' / ' + MAX_CLARKS;
+    }
+
+    let nWall = [], nTimer = 0;
+    function refreshNear() {
+      const R2 = 15; nWall.length = 0;
+      for (const w of boxes) {
+        if (vPos.x > w.minX - R2 && vPos.x < w.maxX + R2 &&
+            vPos.z > w.minZ - R2 && vPos.z < w.maxZ + R2) nWall.push(w);
+      }
+    }
+
+    function resolve(pos, rad, vel) {
+      for (let it = 0; it < 3; it++) {
+        let hit = false;
+        for (const w of boxes) {
+          if (pos.x < w.minX - rad || pos.x > w.maxX + rad ||
+              pos.z < w.minZ - rad || pos.z > w.maxZ + rad) continue;
+          const cx = pos.x < w.minX ? w.minX : (pos.x > w.maxX ? w.maxX : pos.x);
+          const cz = pos.z < w.minZ ? w.minZ : (pos.z > w.maxZ ? w.maxZ : pos.z);
+          const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
+          if (d2 >= rad * rad) continue;
+          hit = true;
+          let nx = 0, nz = 0;
+          if (d2 > 1e-9) {
+            const d = Math.sqrt(d2), push = (rad - d) / d;
+            pos.x += dx * push; pos.z += dz * push;
+            nx = dx / d; nz = dz / d;
+          } else {
+            const dl = pos.x - w.minX, dr = w.maxX - pos.x, dt = pos.z - w.minZ, db = w.maxZ - pos.z;
+            const m = Math.min(dl, dr, dt, db);
+            if (m === dl) { pos.x = w.minX - rad; nx = -1; }
+            else if (m === dr) { pos.x = w.maxX + rad; nx = 1; }
+            else if (m === dt) { pos.z = w.minZ - rad; nz = -1; }
+            else { pos.z = w.maxZ + rad; nz = 1; }
+          }
+          if (vel) {
+            const dot = vel.x * nx + vel.z * nz;
+            if (dot < 0) {
+              vel.x -= dot * nx; vel.z -= dot * nz;
+              vel.x *= 0.98; vel.z *= 0.98;
+            }
           }
         }
-        if (c) {
-          clarkTargets.set(sc.id, sc);
-        }
-      });
-      for (let i = clarks.length - 1; i >= 0; i--) {
-        if (!seen.has(clarks[i].id)) removeClark(clarks[i].id);
+        if (!hit) break;
       }
     }
 
-    if (msg.players) {
-      const seen = new Set();
-      Object.entries(msg.players).forEach(([id, p]) => {
-        if (id === myId) return;
-        seen.add(id);
-        let entry = remotePlayers.get(id);
-        if (!entry) {
-          entry = { ...p };
-          remotePlayers.set(id, entry);
-        } else {
-          Object.assign(entry, p);
+    function camLimit(target, dir, maxD) {
+      const step = .2, pad = .2;
+      for (let d = .5; d <= maxD; d += step) {
+        const px = target.x + dir.x * d, py = target.y + dir.y * d, pz = target.z + dir.z * d;
+        if (py < .22 || py > WH - .18) return Math.max(d - step, .4);
+        for (const w of nWall) {
+          if (px > w.minX - pad && px < w.maxX + pad && pz > w.minZ - pad && pz < w.maxZ + pad) {
+            return Math.max(d - step, .4);
+          }
         }
-        ensureRemoteAvatar(id, entry);
-      });
-
-      remotePlayers.forEach((_, id) => {
-        if (!seen.has(id)) {
-          remotePlayers.delete(id);
-          removeRemotePlayer(id);
-        }
-      });
+      }
+      return maxD;
     }
-    updateOnlineCount();
-  } else if (msg.type === 'chat') {
-    const cm = { nick: msg.nick, title: msg.title, text: msg.text };
-    appendChat(cm);
-    chatHistory.push(cm);
-    if (chatHistory.length > MAX_CHAT) chatHistory.shift();
-  } else if (msg.type === 'caught') {
-    if (msg.id === myId) {
-      vPos.set(0, 0, 0);
-      appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
-    }
-  } else if (msg.type === 'kicked') {
-    appendChat({ system: true, text: 'You were removed from the room by the host.' });
-    destroyPeer();
-    role = null;
-    setHudStatus('○ kicked');
-  }
-}
 
-function sendHostTick() {
-  if (role !== 'host' || !myUser) return;
+    /* ============================================================
+       AUTH — boblox.users
+       ============================================================ */
+    const USERS_KEY = 'boblox.users';
+    let myUser = null;
+    let joined = false;
 
-  allPlayers.set(myId, {
-    nick: myUser.nick, title: myUser.title,
-    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0, isHost: true,
-  });
-
-  const players = {};
-  allPlayers.forEach((p, id) => { players[id] = p; });
-
-  const msg = {
-    type: 'tick',
-    hostId: myId,
-    clarks: clarks.map(serializeClark),
-    clarkImmunity,
-    players,
-  };
-
-  guests.forEach(g => {
-    if (g.open) { try { g.send(msg); } catch (e) {} }
-  });
-}
-
-function sendGuestUpdate() {
-  if (role !== 'guest' || !hostConn || !hostConn.open || !myUser) return;
-  const msg = {
-    type: 'update',
-    nick: myUser.nick, title: myUser.title,
-    x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0,
-  };
-  try { hostConn.send(msg); } catch (e) {}
-}
-
-function broadcastToGuests(msg, exclude) {
-  guests.forEach(g => {
-    if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} }
-  });
-}
-
-function destroyPeer() {
-  if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
-  hostConn = null;
-  guests = [];
-}
-
-function scheduleRetry() {
-  if (retryLock) return;
-  retryLock = true;
-  setHudStatus('○ reconnecting…');
-  setTimeout(() => {
-    retryLock = false;
-    if (joined) initNet();
-  }, 2500);
-}
-
-function clearAllAvatars() {
-  remoteAvatars.forEach((_, id) => removeRemotePlayer(id));
-  remoteAvatars.clear();
-}
-
-/* ============================================================
-   REMOTE AVATARS
-   ============================================================ */
-function hashHue(id) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return (h % 360) / 360;
-}
-
-function ensureRemoteAvatar(id, data) {
-  if (remoteAvatars.has(id)) return;
-
-  const hue = hashHue(id);
-  let root = null;
-  let rig = null;
-  let mixer = null;
-
-  const cloned = cloneModel(playerModelTemplate);
-  if (cloned) {
-    tintClone(cloned, hue);
-    root = new _T.Group();
-    root.add(cloned);
-    if (playerModelIdleClip) {
+    function loadBobloxUsers() {
+      let raw;
+      try { raw = localStorage.getItem(USERS_KEY); } catch (e) { raw = null; }
+      if (!raw) return {};
       try {
-        mixer = new _T.AnimationMixer(cloned);
-        mixer.clipAction(playerModelIdleClip).play();
-      } catch (e) { mixer = null; }
-    }
-  } else {
-    rig = buildVRig();
-    root = rig.root;
-    root.traverse(o => {
-      if (o.isMesh && o.material) {
-        o.material = o.material.clone();
-        o.material.color.setHSL(hue, 0.55, 0.55);
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+        const users = {};
+        Object.keys(parsed).forEach(k => {
+          const rec = parsed[k];
+          if (rec && typeof rec === 'object') users[k] = rec;
+        });
+        return users;
+      } catch (e) {
+        return {};
       }
-    });
-  }
+    }
 
-  const label = makeLabel(data.nick, data.title, '#fff5d2', !!data.isHost);
-  label.position.y = 2.4;
-  root.add(label);
+    function showLogin() {
+      const users = loadBobloxUsers();
+      const list = document.getElementById('user-list');
+      list.innerHTML = '';
+      const nicks = Object.keys(users).sort();
 
-  root.position.set(data.x, data.y, data.z);
-  root.rotation.y = data.rot;
-  scene.add(root);
-
-  remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost });
-}
-
-function removeRemotePlayer(id) {
-  const av = remoteAvatars.get(id);
-  if (!av) return;
-  if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
-  scene.remove(av.root);
-  remoteAvatars.delete(id);
-  updateOnlineCount();
-}
-
-function updateRemoteAvatars(dt) {
-  const k = 1 - Math.exp(-12 * dt);
-  remoteAvatars.forEach((av, id) => {
-    const p = (role === 'host') ? allPlayers.get(id) : remotePlayers.get(id);
-    if (!p) return;
-
-    av.root.position.x += (p.x - av.root.position.x) * k;
-    av.root.position.y += (p.y - av.root.position.y) * k;
-    av.root.position.z += (p.z - av.root.position.z) * k;
-
-    let dr = p.rot - av.root.rotation.y;
-    while (dr > Math.PI) dr -= Math.PI * 2;
-    while (dr < -Math.PI) dr += Math.PI * 2;
-    av.root.rotation.y += dr * k;
-
-    if (av.mixer) av.mixer.update(dt);
-
-    if (av.rig) {
-      if (p.spd > 0.1) {
-        av.phase += dt * (p.spd > 12 ? 14 : 9);
-        const s = Math.sin(av.phase) * 0.85;
-        av.rig.armL.rotation.x = s;
-        av.rig.armR.rotation.x = -s;
-        av.rig.legL.rotation.x = -s;
-        av.rig.legR.rotation.x = s;
+      if (nicks.length === 0) {
+        const empty = document.createElement('div');
+        empty.id = 'user-empty';
+        empty.textContent = 'No users found in boblox.users — try a guest name below.';
+        list.appendChild(empty);
       } else {
-        const d = Math.max(0, 1 - dt * 6);
-        av.rig.armL.rotation.x *= d;
-        av.rig.armR.rotation.x *= d;
-        av.rig.legL.rotation.x *= d;
-        av.rig.legR.rotation.x *= d;
+        nicks.forEach(nick => {
+          const rec = users[nick] || {};
+          const title = typeof rec.title === 'string' ? rec.title : 'Explorer';
+          const btn = document.createElement('button');
+          btn.className = 'user-btn';
+          const n = document.createElement('span'); n.className = 'user-nick'; n.textContent = nick;
+          const t = document.createElement('span'); t.className = 'user-title'; t.textContent = title;
+          btn.appendChild(n); btn.appendChild(t);
+          btn.addEventListener('click', () => startGame(nick, title));
+          list.appendChild(btn);
+        });
       }
+      document.getElementById('login').style.display = 'flex';
     }
-  });
-}
 
-/* ============================================================
-   CHAT
-   ============================================================ */
-function appendChat(msg) {
-  const el = document.getElementById('chat-messages');
-  if (!el) return;
+    document.getElementById('new-btn').addEventListener('click', () => {
+      const nick = document.getElementById('new-nick').value.trim().slice(0, 16);
+      if (!nick) return;
+      startGame(nick, 'Guest');
+    });
+    document.getElementById('new-nick').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('new-btn').click();
+    });
 
-  const div = document.createElement('div');
-  div.className = 'chat-line' + (msg.system ? ' system' : '') + (msg.admin ? ' admin' : '');
+    /* ============================================================
+       MULTIPLAYER NETWORKING
+       ============================================================ */
+    const ROOM_ID = 'spatial-walk-mp-v4';
 
-  if (msg.system) {
-    div.textContent = '· ' + msg.text;
-  } else {
-    const who = document.createElement('span');
-    who.className = 'who';
-    who.textContent = msg.nick || 'Anon';
-    div.appendChild(who);
+    let peer = null;
+    let role = null;
+    let hostConn = null;
+    let guests = [];
+    let myId = null;
+    let hostId = null;
+    let netAccum = 0;
+    let retryLock = false;
 
-    if (msg.title) {
-      const t = document.createElement('span');
-      t.className = 'title';
-      t.textContent = msg.title;
-      div.appendChild(t);
+    const allPlayers = new Map();      
+    const remotePlayers = new Map();   
+    const remoteAvatars = new Map();   
+    const clarkTargets = new Map();    
+
+    const chatHistory = [];
+    const MAX_CHAT = 50;
+
+    function setHudStatus(text) {
+      const el = document.getElementById('hud-status');
+      if (el) el.textContent = text;
     }
-    div.appendChild(document.createTextNode(': ' + (msg.text || '')));
-  }
 
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-  while (el.children.length > MAX_CHAT) el.removeChild(el.firstChild);
-}
-
-function sendChat() {
-  if (!joined || !myUser) return;
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-
-  const msg = { nick: myUser.nick, title: myUser.title, text };
-  appendChat(msg);
-  chatHistory.push(msg);
-  if (chatHistory.length > MAX_CHAT) chatHistory.shift();
-
-  if (role === 'host') broadcastToGuests({ type: 'chat', ...msg });
-  else if (hostConn && hostConn.open) {
-    try { hostConn.send({ type: 'chat', ...msg }); } catch (e) {}
-  }
-}
-
-document.getElementById('chat-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
-  else if (e.key === 'Escape') e.target.blur();
-});
-
-/* ============================================================
-   ADMIN PANEL
-   ============================================================ */
-const adminKeys = [];
-let adminPanelOpen = false;
-
-function toggleAdminPanel(force) {
-  adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
-  document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
-  if (adminPanelOpen) updateClarkCountUI();
-}
-
-document.querySelectorAll('#admin-panel button').forEach(btn => {
-  btn.addEventListener('click', () => adminAction(btn.dataset.act));
-});
-
-window.addEventListener('keydown', (e) => {
-  if (!joined || role !== 'host') return;
-  const t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-
-  const k = e.key.toLowerCase();
-  if (k === 'd' || k === 'e' || k === 'v') {
-    adminKeys.push(k);
-    if (adminKeys.length > 3) adminKeys.shift();
-    if (adminKeys.join('') === 'dev') {
-      adminKeys.length = 0;
-      toggleAdminPanel();
+    function updateOnlineCount() {
+      const total = (role === 'host') ? allPlayers.size : (remotePlayers.size + 1);
+      if (role === 'host') setHudStatus('● hosting · ' + total + ' online');
+      else if (role === 'guest') setHudStatus('● joined · ' + total + ' online');
+      else setHudStatus('○ idle');
     }
-  } else adminKeys.length = 0;
-});
 
-function adminSystemMsg(hostText, guestText) {
-  appendChat({ system: true, text: 'Admin: ' + hostText });
-  if (guestText) {
-    broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
-  }
-}
-
-function adminAction(action) {
-  if (role !== 'host' || !myUser) return;
-
-  switch (action) {
-    case 'add-clark': {
-      if (clarks.length >= MAX_CLARKS) {
-        appendChat({ system: true, text: 'Admin: maximum of ' + MAX_CLARKS + ' Clarks reached.' });
-        return;
-      }
-      spawnClark();
-      adminSystemMsg('Clark added (' + clarks.length + ' total).', 'A Clark has been added.');
-      break;
-    }
-    case 'remove-clark': {
-      if (!clarks.length) {
-        appendChat({ system: true, text: 'Admin: no Clarks to remove.' });
-        return;
-      }
-      removeLastClark();
-      adminSystemMsg('Clark removed (' + clarks.length + ' remaining).', 'A Clark has been removed.');
-      break;
-    }
-    case 'clear-clarks': {
-      clearAllClarks();
-      adminSystemMsg('All Clarks cleared.', 'All Clarks have been cleared.');
-      break;
-    }
-    case 'toggle-immunity': {
-      clarkImmunity = !clarkImmunity;
-      const state = clarkImmunity ? 'ON' : 'OFF';
-      adminSystemMsg('Immunity is now ' + state + '.', 'Immunity is now ' + state + '.');
-      break;
-    }
-    case 'teleport-clark': {
-      if (!clarks.length) spawnClark(vPos.x + 3, vPos.z + 3);
-      else clarks.forEach((c, i) => {
-        const ang = (i / clarks.length) * Math.PI * 2;
-        c.pos.set(vPos.x + Math.cos(ang) * 3, 0, vPos.z + Math.sin(ang) * 3);
-        c.vel.set(0, 0, 0);
-      });
-      adminSystemMsg('Clarks teleported next to you.', null);
-      break;
-    }
-    case 'reset-clark': {
-      resetAllClarks();
-      adminSystemMsg('Clarks reset to random locations.', null);
-      break;
-    }
-    case 'broadcast': {
-      const text = prompt('Broadcast to all players:');
-      if (text && text.trim()) {
-        const clean = text.trim();
-        appendChat({ system: true, text: 'Admin broadcast: ' + clean });
-        broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: clean });
-      }
-      break;
-    }
-    case 'kick-all': {
-      if (!confirm('Kick all guests from the room?')) return;
-      guests.forEach(g => {
-        if (g.open) {
-          try { g.send({ type: 'kicked' }); } catch (e) {}
-          try { g.close(); } catch (e) {}
-        }
-      });
-      guests = [];
+    function initNet() {
+      destroyPeer();
+      clearAllAvatars();
       allPlayers.clear();
       remotePlayers.clear();
-      clearAllAvatars();
-      appendChat({ system: true, text: 'Admin: all guests were kicked.' });
-      updateOnlineCount();
-      break;
+      clarkTargets.clear();
+      setHudStatus('○ connecting…');
+
+      const p = new Peer(ROOM_ID, { debug: 0 });
+      peer = p;
+
+      p.on('open', (id) => {
+        if (peer !== p) return;
+        myId = id;
+        hostId = id;
+        role = 'host';
+        allPlayers.set(myId, {
+          nick: myUser.nick, title: myUser.title,
+          x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0,
+          isHost: true,
+        });
+        updateOnlineCount();
+        appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
+      });
+
+      p.on('connection', onGuest);
+
+      p.on('error', (err) => {
+        if (peer !== p) return;
+        if (err && err.type === 'unavailable-id') {
+          destroyPeer();
+          joinAsGuest();
+        } else if (err && err.type === 'network') {
+          scheduleRetry();
+        }
+      });
+
+      p.on('disconnected', () => {
+        try { p.reconnect(); } catch (e) {}
+      });
     }
-    case 'close': toggleAdminPanel(false); break;
-  }
 
-  updateClarkCountUI();
-}
+    function joinAsGuest() {
+      destroyPeer();
+      clearAllAvatars();
+      allPlayers.clear();
+      remotePlayers.clear();
+      clarkTargets.clear();
+      setHudStatus('○ joining…');
 
-/* ============================================================
-   START GAME
-   ============================================================ */
-let started = false;
+      const p = new Peer({ debug: 0 });
+      peer = p;
 
-function startGame(nick, title) {
-  if (started) return;
-  started = true;
+      p.on('open', (id) => {
+        if (peer !== p) return;
+        myId = id;
+        const conn = p.connect(ROOM_ID, { reliable: true });
+        hostConn = conn;
 
-  myUser = { nick, title };
-  joined = true;
+        conn.on('open', () => {
+          if (peer !== p) return;
+          role = 'guest';
+          updateOnlineCount();
+          appendChat({ system: true, text: 'Joined the room as ' + myUser.nick + '.' });
+          sendGuestUpdate();
+        });
 
-  localLabelSprite = makeLabel(nick, title, '#e0c86a', true);
-  viewerVis.add(localLabelSprite);
+        conn.on('data', handleFromHost);
+        conn.on('close', () => { if (peer === p) scheduleRetry(); });
+        conn.on('error', () => { if (peer === p) scheduleRetry(); });
+      });
 
-  document.getElementById('hud-name').textContent = nick;
-  document.getElementById('hud-title').textContent = title;
-  const chatInput = document.getElementById('chat-input');
-  chatInput.disabled = false;
+      p.on('error', () => { if (peer === p) scheduleRetry(); });
+      p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
+    }
 
-  const loginEl = document.getElementById('login');
-  loginEl.classList.add('hidden');
-  setTimeout(() => { if (loginEl.parentNode) loginEl.remove(); }, 600);
+    function onGuest(conn) {
+      guests.push(conn);
 
-  if (!clarks.length) spawnClark();
+      const players = {};
+      allPlayers.forEach((p, id) => { players[id] = p; });
+      players[myId] = {
+        nick: myUser.nick, title: myUser.title,
+        x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+        spd: holding ? MOVE_SPEED : 0, isHost: true,
+      };
 
-  initNet();
-  loop();
-}
+      try {
+        conn.send({
+          type: 'tick',
+          hostId: myId,
+          clarks: clarks.map(serializeClark),
+          clarkImmunity,
+          players,
+        });
+      } catch (e) {}
 
-/* ============================================================
-   INPUT
-   ============================================================ */
-const cv = R.domElement;
-let lastX = 0, lastY = 0;
+      chatHistory.forEach(m => {
+        try { conn.send({ type: 'chat', ...m }); } catch (e) {}
+      });
 
-function resumeAudio() {
-  if (themeEl && themeEl.paused) themeEl.play().catch(() => {});
-}
+      conn.on('data', (msg) => handleFromGuest(msg, conn));
 
-function isInteractiveElement(target) {
-  if (!target) return false;
-  let el = target;
-  while (el && el !== document.body) {
-    if (el.id === 'admin-panel' || el.id === 'chat-panel' || el.id === 'chat-input' ||
-        el.id === 'login' || el.tagName === 'INPUT' || el.tagName === 'BUTTON' ||
-        el.tagName === 'TEXTAREA') return true;
-    el = el.parentElement;
-  }
-  return false;
-}
+      const drop = () => {
+        guests = guests.filter(g => g !== conn);
+        allPlayers.delete(conn.peer);
+        remotePlayers.delete(conn.peer);
+        removeRemotePlayer(conn.peer);
+        updateOnlineCount();
+      };
+      conn.on('close', drop);
+      conn.on('error', drop);
 
-cv.addEventListener('mousedown', (e) => {
-  if (!joined) return;
-  if (e.button !== 0) return;
-  if (isInteractiveElement(e.target)) return;
-  holding = true;
-  lastX = e.clientX; lastY = e.clientY;
-  resumeAudio();
-});
-window.addEventListener('mouseup', () => { holding = false; });
-window.addEventListener('blur', () => { holding = false; });
+      updateOnlineCount();
+    }
 
-window.addEventListener('mousemove', (e) => {
-  if (!joined || !holding) return;
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
-  lastX = e.clientX; lastY = e.clientY;
-  tYaw   -= dx * 0.005;
-  tPitch -= dy * 0.004;
-  tPitch  = C(tPitch, -0.9, 1.2);
-});
+    function serializeClark(c) {
+      return {
+        id: c.id,
+        x: c.pos.x, y: c.pos.y, z: c.pos.z,
+        rot: c.heading,
+        spd: c.spd,
+      };
+    }
 
-cv.addEventListener('wheel', (e) => {
-  if (!joined) return;
-  if (isInteractiveElement(e.target)) return;
-  e.preventDefault();
-  const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-  tDist = C(tDist + d * 0.01, 1.5, 14);
-}, { passive: false });
+    function handleFromGuest(msg, conn) {
+      if (!msg || !msg.type) return;
 
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Shift') isSprinting = true;
-});
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'Shift') isSprinting = false;
-});
-
-function resize() {
-  cam.aspect = innerWidth / innerHeight;
-  cam.updateProjectionMatrix();
-  R.setSize(innerWidth, innerHeight, false);
-}
-window.addEventListener('resize', resize);
-
-/* ============================================================
-   CLARK PHYSICS (host-only, per Clark)
-   ============================================================ */
-function updateClarkPhysics(c, dt) {
-  const pdx = vPos.x - c.pos.x;
-  const pdz = vPos.z - c.pos.z;
-  const pd = Math.hypot(pdx, pdz) || 1;
-
-  c.vel.x += (pdx / pd) * MON_ACCEL * dt;
-  c.vel.z += (pdz / pd) * MON_ACCEL * dt;
-
-  const fr = Math.exp(-MON_FRICTION * dt);
-  c.vel.x *= fr; c.vel.z *= fr;
-
-  const mspd = Math.hypot(c.vel.x, c.vel.z);
-  if (mspd > MON_MAXSPD) {
-    const kk = MON_MAXSPD / mspd;
-    c.vel.x *= kk; c.vel.z *= kk;
-  }
-
-  c.pos.x += c.vel.x * dt;
-  c.pos.z += c.vel.z * dt;
-  resolve(c.pos, 0.6, c.vel);
-
-  if (mspd > 0.5) {
-    const ta = Math.atan2(c.vel.x, c.vel.z);
-    let dh = (ta - c.heading) % (Math.PI * 2);
-    if (dh > Math.PI) dh -= Math.PI * 2;
-    if (dh < -Math.PI) dh += Math.PI * 2;
-    c.heading += dh * (1 - Math.exp(-MON_TURN * dt));
-  }
-
-  c.spd = mspd;
-}
-
-function hostCheckClarkCatch() {
-  if (role !== 'host' || clarkImmunity) return;
-  if (!clarks.length) return;
-  const caught = [];
-
-  const localCaught = clarks.some(c =>
-    Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1
-  );
-  if (localCaught) {
-    vPos.set(0, 0, 0);
-    appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
-    caught.push(myId);
-  }
-
-  allPlayers.forEach((p, id) => {
-    if (id === myId) return;
-    const hit = clarks.some(c =>
-      Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1
-    );
-    if (hit) {
-      caught.push(id);
-      const target = guests.find(g => g.peer === id);
-      if (target && target.open) {
-        try { target.send({ type: 'caught', id }); } catch (e) {}
+      if (msg.type === 'update') {
+        const data = {
+          nick: msg.nick || 'Guest',
+          title: msg.title || 'Guest',
+          x: msg.x, y: msg.y, z: msg.z, rot: msg.rot,
+          spd: msg.spd, isHost: false,
+        };
+        const prev = allPlayers.get(conn.peer);
+        if (!prev) {
+          allPlayers.set(conn.peer, data);
+          remotePlayers.set(conn.peer, data);
+          ensureRemoteAvatar(conn.peer, data);
+          updateOnlineCount();
+        } else {
+          Object.assign(prev, data);
+          const rp = remotePlayers.get(conn.peer);
+          if (rp) Object.assign(rp, data);
+          else remotePlayers.set(conn.peer, data);
+        }
+      } else if (msg.type === 'chat') {
+        const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+        appendChat(cm);
+        chatHistory.push(cm);
+        if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+        broadcastToGuests({ type: 'chat', ...cm }, conn);
       }
     }
-  });
 
-  if (caught.length > 0) resetAllClarks();
-}
+    function handleFromHost(msg) {
+      if (!msg || !msg.type) return;
 
-/* ============================================================
-   CLARK VISUAL UPDATE (both host and guest)
-   ============================================================ */
-function updateClarkVisuals(dt, k) {
-  clarks.forEach(c => {
-    if (role === 'guest') {
-      const t = clarkTargets.get(c.id);
-      if (t) {
-        c.pos.x += (t.x - c.pos.x) * k;
-        c.pos.y += (t.y - c.pos.y) * k;
-        c.pos.z += (t.z - c.pos.z) * k;
-        let dr = t.rot - c.heading;
+      if (msg.type === 'tick') {
+        if (msg.hostId) hostId = msg.hostId;
+        if (typeof msg.clarkImmunity === 'boolean') clarkImmunity = msg.clarkImmunity;
+
+        if (Array.isArray(msg.clarks)) {
+          const seen = new Set();
+          msg.clarks.forEach(sc => {
+            seen.add(sc.id);
+            let c = clarks.find(x => x.id === sc.id);
+            if (!c) {
+              const created = spawnClark(sc.x, sc.z);
+              if (created) {
+                created.id = sc.id;
+                c = created;
+              }
+            }
+            if (c) {
+              clarkTargets.set(sc.id, sc);
+            }
+          });
+          for (let i = clarks.length - 1; i >= 0; i--) {
+            if (!seen.has(clarks[i].id)) removeClark(clarks[i].id);
+          }
+        }
+
+        if (msg.players) {
+          const seen = new Set();
+          Object.entries(msg.players).forEach(([id, p]) => {
+            if (id === myId) return;
+            seen.add(id);
+            let entry = remotePlayers.get(id);
+            if (!entry) {
+              entry = { ...p };
+              remotePlayers.set(id, entry);
+            } else {
+              Object.assign(entry, p);
+            }
+            ensureRemoteAvatar(id, entry);
+          });
+
+          remotePlayers.forEach((_, id) => {
+            if (!seen.has(id)) {
+              remotePlayers.delete(id);
+              removeRemotePlayer(id);
+            }
+          });
+        }
+        updateOnlineCount();
+      } else if (msg.type === 'chat') {
+        const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+        appendChat(cm);
+        chatHistory.push(cm);
+        if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+      } else if (msg.type === 'caught') {
+        if (msg.id === myId) {
+          vPos.set(0, 0, 0);
+          appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
+        }
+      } else if (msg.type === 'kicked') {
+        appendChat({ system: true, text: 'You were removed from the room by the host.' });
+        destroyPeer();
+        role = null;
+        setHudStatus('○ kicked');
+      }
+    }
+
+    function sendHostTick() {
+      if (role !== 'host' || !myUser) return;
+
+      allPlayers.set(myId, {
+        nick: myUser.nick, title: myUser.title,
+        x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+        spd: holding ? MOVE_SPEED : 0, isHost: true,
+      });
+
+      const players = {};
+      allPlayers.forEach((p, id) => { players[id] = p; });
+
+      const msg = {
+        type: 'tick',
+        hostId: myId,
+        clarks: clarks.map(serializeClark),
+        clarkImmunity,
+        players,
+      };
+
+      guests.forEach(g => {
+        if (g.open) { try { g.send(msg); } catch (e) {} }
+      });
+    }
+
+    function sendGuestUpdate() {
+      if (role !== 'guest' || !hostConn || !hostConn.open || !myUser) return;
+      const msg = {
+        type: 'update',
+        nick: myUser.nick, title: myUser.title,
+        x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+        spd: holding ? MOVE_SPEED : 0,
+      };
+      try { hostConn.send(msg); } catch (e) {}
+    }
+
+    function broadcastToGuests(msg, exclude) {
+      guests.forEach(g => {
+        if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} }
+      });
+    }
+
+    function destroyPeer() {
+      if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+      hostConn = null;
+      guests = [];
+    }
+
+    function scheduleRetry() {
+      if (retryLock) return;
+      retryLock = true;
+      setHudStatus('○ reconnecting…');
+      setTimeout(() => {
+        retryLock = false;
+        if (joined) initNet();
+      }, 2500);
+    }
+
+    function clearAllAvatars() {
+      remoteAvatars.forEach((_, id) => removeRemotePlayer(id));
+      remoteAvatars.clear();
+    }
+
+    /* ============================================================
+       REMOTE AVATARS
+       ============================================================ */
+    function hashHue(id) {
+      let h = 0;
+      for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+      return (h % 360) / 360;
+    }
+
+    function ensureRemoteAvatar(id, data) {
+      if (remoteAvatars.has(id)) return;
+
+      const hue = hashHue(id);
+      let root = null;
+      let rig = null;
+      let mixer = null;
+
+      const cloned = cloneModel(playerModelTemplate);
+      if (cloned) {
+        tintClone(cloned, hue);
+        root = new _T.Group();
+        root.add(cloned);
+        if (playerModelIdleClip) {
+          try {
+            mixer = new _T.AnimationMixer(cloned);
+            mixer.clipAction(playerModelIdleClip).play();
+          } catch (e) { mixer = null; }
+        }
+      } else {
+        rig = buildVRig();
+        root = rig.root;
+        root.traverse(o => {
+          if (o.isMesh && o.material) {
+            o.material = o.material.clone();
+            o.material.color.setHSL(hue, 0.55, 0.55);
+          }
+        });
+      }
+
+      const label = makeLabel(data.nick, data.title, '#fff5d2', !!data.isHost);
+      label.position.y = 2.4;
+      root.add(label);
+
+      root.position.set(data.x, data.y, data.z);
+      root.rotation.y = data.rot;
+      scene.add(root);
+
+      remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost });
+    }
+
+    function removeRemotePlayer(id) {
+      const av = remoteAvatars.get(id);
+      if (!av) return;
+      if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
+      scene.remove(av.root);
+      remoteAvatars.delete(id);
+      updateOnlineCount();
+    }
+
+    function updateRemoteAvatars(dt) {
+      const k = 1 - Math.exp(-12 * dt);
+      remoteAvatars.forEach((av, id) => {
+        const p = (role === 'host') ? allPlayers.get(id) : remotePlayers.get(id);
+        if (!p) return;
+
+        av.root.position.x += (p.x - av.root.position.x) * k;
+        av.root.position.y += (p.y - av.root.position.y) * k;
+        av.root.position.z += (p.z - av.root.position.z) * k;
+
+        let dr = p.rot - av.root.rotation.y;
         while (dr > Math.PI) dr -= Math.PI * 2;
         while (dr < -Math.PI) dr += Math.PI * 2;
-        c.heading += dr * k;
-        c.spd = t.spd;
-      }
+        av.root.rotation.y += dr * k;
+
+        if (av.mixer) av.mixer.update(dt);
+
+        if (av.rig) {
+          if (p.spd > 0.1) {
+            av.phase += dt * (p.spd > 12 ? 14 : 9);
+            const s = Math.sin(av.phase) * 0.85;
+            av.rig.armL.rotation.x = s;
+            av.rig.armR.rotation.x = -s;
+            av.rig.legL.rotation.x = -s;
+            av.rig.legR.rotation.x = s;
+          } else {
+            const d = Math.max(0, 1 - dt * 6);
+            av.rig.armL.rotation.x *= d;
+            av.rig.armR.rotation.x *= d;
+            av.rig.legL.rotation.x *= d;
+            av.rig.legR.rotation.x *= d;
+          }
+        }
+      });
     }
 
-    c.root.position.copy(c.pos);
-    c.root.rotation.y = c.heading;
+    /* ============================================================
+       CHAT
+       ============================================================ */
+    function appendChat(msg) {
+      const el = document.getElementById('chat-messages');
+      if (!el) return;
 
-    const fwdX = Math.sin(c.heading), fwdZ = Math.cos(c.heading);
-    const lat = (c.vel.x * fwdZ - c.vel.z * fwdX);
-    const lean = C(-lat * 0.12, -0.7, 0.7);
-    c.root.rotation.z += (lean - c.root.rotation.z) * Math.min(1, dt * 6);
-    c.root.rotation.x = C(c.spd / MON_MAXSPD, 0, 1) * 0.12;
+      const div = document.createElement('div');
+      div.className = 'chat-line' + (msg.system ? ' system' : '') + (msg.admin ? ' admin' : '');
 
-    c.phase += dt * (c.spd * 2.4 + 4);
-    if (c.fallbackRig) {
-      const s = Math.sin(c.phase) * 1.1;
-      c.fallbackRig.legL.rotation.x = s;
-      c.fallbackRig.legR.rotation.x = -s;
-      c.fallbackRig.armL.rotation.x = -s * 0.8;
-      c.fallbackRig.armR.rotation.x = s * 0.8;
-    }
-    if (c.mixer) {
-      c.mixer.update(dt);
-    }
-  });
-}
-
-function nearestClarkDistance() {
-  if (!clarks.length) return Infinity;
-  let m = Infinity;
-  for (const c of clarks) {
-    const d = Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z);
-    if (d < m) m = d;
-  }
-  return m;
-}
-
-/* ============================================================
-   LOOP
-   ============================================================ */
-const clock = new _T.Clock();
-let vWalk = 0;
-
-function step(dt) {
-  nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
-
-  const k = 1 - Math.exp(-10 * dt);
-  oYaw   += (tYaw   - oYaw)   * k;
-  oPitch += (tPitch - oPitch) * k;
-  oDist  += (tDist  - oDist)  * k;
-
-  const fx = -Math.sin(oYaw);
-  const fz = -Math.cos(oYaw);
-  
-  if (holding) {
-    const currentSpeed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
-    vPos.x += fx * currentSpeed * dt;
-    vPos.z += fz * currentSpeed * dt;
-    resolve(vPos, 0.4, null);
-    vWalk += dt * currentSpeed * 2.6;
-    vHeading.y = Math.atan2(fx, fz);
-  }
-
-  viewer.position.copy(vPos);
-  viewer.rotation.y = vHeading.y;
-  if (vRig) {
-    const s = Math.sin(vWalk) * 0.9;
-    vRig.armL.rotation.x = s; vRig.armR.rotation.x = -s;
-    vRig.legL.rotation.x = -s; vRig.legR.rotation.x = s;
-  }
-  if (vMix) vMix.update(dt);
-
-  if (role === 'host') {
-    for (const c of clarks) updateClarkPhysics(c, dt);
-    hostCheckClarkCatch();
-  }
-
-  updateClarkVisuals(dt, k);
-
-  const near = nearestClarkDistance();
-  if (themeEl) {
-    const wantAudible = clarks.length > 0;
-    if (wantAudible) {
-      if (near < 38) {
-        if (themeEl.paused) themeEl.play().catch(() => {});
-        const t = C(1 - (near - 1) / 37, 0, 1);
-        const targetVol = 0.05 + t * 0.95;
-        themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
+      if (msg.system) {
+        div.textContent = '· ' + msg.text;
       } else {
-        themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
-        if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
+        const who = document.createElement('span');
+        who.className = 'who';
+        who.textContent = msg.nick || 'Anon';
+        div.appendChild(who);
+
+        if (msg.title) {
+          const t = document.createElement('span');
+          t.className = 'title';
+          t.textContent = msg.title;
+          div.appendChild(t);
+        }
+        div.appendChild(document.createTextNode(': ' + (msg.text || '')));
       }
-    } else if (!themeEl.paused) {
-      themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
-      if (themeEl.volume < 0.01) themeEl.pause();
+
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+      while (el.children.length > MAX_CHAT) el.removeChild(el.firstChild);
     }
-  }
 
-  const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
-  const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
+    function sendChat() {
+      if (!joined || !myUser) return;
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
 
-  const dir = new _T.Vector3(
-    Math.sin(oYaw) * Math.cos(oPitch),
-    -Math.sin(oPitch),
-    Math.cos(oYaw) * Math.cos(oPitch)
-  ).normalize();
+      const msg = { nick: myUser.nick, title: myUser.title, text };
+      appendChat(msg);
+      chatHistory.push(msg);
+      if (chatHistory.length > MAX_CHAT) chatHistory.shift();
 
-  const d = camLimit(target, dir, oDist);
-  const desired = target.clone().addScaledVector(dir, d);
-  if (desired.y < 0.22) desired.y = 0.22;
-
-  const nearEase = C((2.4 - oDist) / 1.6, 0, 1);
-  const ease = nearEase * nearEase * (3 - 2 * nearEase);
-
-  cam.position.lerpVectors(desired, head, ease);
-
-  const m3 = new _T.Matrix4().lookAt(cam.position, target, new _T.Vector3(0, 1, 0));
-  const q3 = new _T.Quaternion().setFromRotationMatrix(m3);
-  const e1 = new _T.Euler(oPitch, oYaw, 0, 'YXZ');
-  const q1 = new _T.Quaternion().setFromEuler(e1);
-  cam.quaternion.copy(q3).slerp(q1, ease);
-
-  viewerVis.visible = true;
-
-  focus.position.set(vPos.x, vPos.y + 1.9, vPos.z);
-  key.position.set(vPos.x + 4, 12, vPos.z + 4);
-  key.target.position.copy(vPos);
-
-  if (joined && myUser) {
-    netAccum += dt;
-    if (netAccum >= 0.1) {
-      netAccum = 0;
-      if (role === 'host') sendHostTick();
-      else if (role === 'guest') sendGuestUpdate();
+      if (role === 'host') broadcastToGuests({ type: 'chat', ...msg });
+      else if (hostConn && hostConn.open) {
+        try { hostConn.send({ type: 'chat', ...msg }); } catch (e) {}
+      }
     }
-    updateRemoteAvatars(dt);
-  }
-}
 
-function loop() {
-  requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  step(dt);
-  R.render(scene, cam);
-}
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+      else if (e.key === 'Escape') e.target.blur();
+    });
 
-/* ============================================================
-   BOOT
-   ============================================================ */
-resize();
-appendChat({ system: true, text: 'Welcome to Spatial Walk.' });
+    /* ============================================================
+       ADMIN PANEL
+       ============================================================ */
+    const adminKeys = [];
+    let adminPanelOpen = false;
 
-loadAllAssets()
-  .catch((err) => { console.warn('Asset load error', err); })
-  .finally(() => {
-    setLoad(100, 'ready');
-    setTimeout(() => showLogin(), 900);
-  });
-</script>
+    function toggleAdminPanel(force) {
+      adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
+      document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
+      if (adminPanelOpen) updateClarkCountUI();
+    }
+
+    document.querySelectorAll('#admin-panel button').forEach(btn => {
+      btn.addEventListener('click', () => adminAction(btn.dataset.act));
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!joined || role !== 'host') return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+      const k = e.key.toLowerCase();
+      if (k === 'd' || k === 'e' || k === 'v') {
+        adminKeys.push(k);
+        if (adminKeys.length > 3) adminKeys.shift();
+        if (adminKeys.join('') === 'dev') {
+          adminKeys.length = 0;
+          toggleAdminPanel();
+        }
+      } else adminKeys.length = 0;
+    });
+
+    function adminSystemMsg(hostText, guestText) {
+      appendChat({ system: true, text: 'Admin: ' + hostText });
+      if (guestText) {
+        broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
+      }
+    }
+
+    function adminAction(action) {
+      if (role !== 'host' || !myUser) return;
+
+      switch (action) {
+        case 'add-clark': {
+          if (clarks.length >= MAX_CLARKS) {
+            appendChat({ system: true, text: 'Admin: maximum of ' + MAX_CLARKS + ' Clarks reached.' });
+            return;
+          }
+          spawnClark();
+          adminSystemMsg('Clark added (' + clarks.length + ' total).', 'A Clark has been added.');
+          break;
+        }
+        case 'remove-clark': {
+          if (!clarks.length) {
+            appendChat({ system: true, text: 'Admin: no Clarks to remove.' });
+            return;
+          }
+          removeLastClark();
+          adminSystemMsg('Clark removed (' + clarks.length + ' remaining).', 'A Clark has been removed.');
+          break;
+        }
+        case 'clear-clarks': {
+          clearAllClarks();
+          adminSystemMsg('All Clarks cleared.', 'All Clarks have been cleared.');
+          break;
+        }
+        case 'toggle-immunity': {
+          clarkImmunity = !clarkImmunity;
+          const state = clarkImmunity ? 'ON' : 'OFF';
+          adminSystemMsg('Immunity is now ' + state + '.', 'Immunity is now ' + state + '.');
+          break;
+        }
+        case 'teleport-clark': {
+          if (!clarks.length) spawnClark(vPos.x + 3, vPos.z + 3);
+          else clarks.forEach((c, i) => {
+            const ang = (i / clarks.length) * Math.PI * 2;
+            c.pos.set(vPos.x + Math.cos(ang) * 3, 0, vPos.z + Math.sin(ang) * 3);
+            c.vel.set(0, 0, 0);
+          });
+          adminSystemMsg('Clarks teleported next to you.', null);
+          break;
+        }
+        case 'reset-clark': {
+          resetAllClarks();
+          adminSystemMsg('Clarks reset to random locations.', null);
+          break;
+        }
+        case 'broadcast': {
+          const text = prompt('Broadcast to all players:');
+          if (text && text.trim()) {
+            const clean = text.trim();
+            appendChat({ system: true, text: 'Admin broadcast: ' + clean });
+            broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: clean });
+          }
+          break;
+        }
+        case 'kick-all': {
+          if (!confirm('Kick all guests from the room?')) return;
+          guests.forEach(g => {
+            if (g.open) {
+              try { g.send({ type: 'kicked' }); } catch (e) {}
+              try { g.close(); } catch (e) {}
+            }
+          });
+          guests = [];
+          allPlayers.clear();
+          remotePlayers.clear();
+          clearAllAvatars();
+          appendChat({ system: true, text: 'Admin: all guests were kicked.' });
+          updateOnlineCount();
+          break;
+        }
+        case 'close': toggleAdminPanel(false); break;
+      }
+
+      updateClarkCountUI();
+    }
+
+    /* ============================================================
+       START GAME
+       ============================================================ */
+    let started = false;
+
+    function startGame(nick, title) {
+      if (started) return;
+      started = true;
+
+      myUser = { nick, title };
+      joined = true;
+
+      localLabelSprite = makeLabel(nick, title, '#e0c86a', true);
+      viewerVis.add(localLabelSprite);
+
+      document.getElementById('hud-name').textContent = nick;
+      document.getElementById('hud-title').textContent = title;
+      const chatInput = document.getElementById('chat-input');
+      chatInput.disabled = false;
+
+      const loginEl = document.getElementById('login');
+      loginEl.classList.add('hidden');
+      setTimeout(() => { if (loginEl.parentNode) loginEl.remove(); }, 600);
+
+      if (!clarks.length) spawnClark();
+
+      initNet();
+      loop();
+    }
+
+    /* ============================================================
+       INPUT
+       ============================================================ */
+    const cv = R.domElement;
+    let lastX = 0, lastY = 0;
+
+    function resumeAudio() {
+      if (themeEl && themeEl.paused) themeEl.play().catch(() => {});
+    }
+
+    function isInteractiveElement(target) {
+      if (!target) return false;
+      let el = target;
+      while (el && el !== document.body) {
+        if (el.id === 'admin-panel' || el.id === 'chat-panel' || el.id === 'chat-input' ||
+            el.id === 'login' || el.tagName === 'INPUT' || el.tagName === 'BUTTON' ||
+            el.tagName === 'TEXTAREA') return true;
+        el = el.parentElement;
+      }
+      return false;
+    }
+
+    cv.addEventListener('mousedown', (e) => {
+      if (!joined) return;
+      if (e.button !== 0) return;
+      if (isInteractiveElement(e.target)) return;
+      holding = true;
+      lastX = e.clientX; lastY = e.clientY;
+      resumeAudio();
+    });
+    window.addEventListener('mouseup', () => { holding = false; });
+    window.addEventListener('blur', () => { holding = false; });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!joined || !holding) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      tYaw   -= dx * 0.005;
+      tPitch -= dy * 0.004;
+      tPitch  = C(tPitch, -0.9, 1.2);
+    });
+
+    cv.addEventListener('wheel', (e) => {
+      if (!joined) return;
+      if (isInteractiveElement(e.target)) return;
+      e.preventDefault();
+      const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      tDist = C(tDist + d * 0.01, 1.5, 14);
+    }, { passive: false });
+
+    function resize() {
+      cam.aspect = innerWidth / innerHeight;
+      cam.updateProjectionMatrix();
+      R.setSize(innerWidth, innerHeight, false);
+    }
+    window.addEventListener('resize', resize);
+
+    /* ============================================================
+       CLARK PHYSICS (host-only, per Clark)
+       ============================================================ */
+    function updateClarkPhysics(c, dt) {
+      // --- slight random wandering ---
+      c.wanderTimer -= dt;
+      if (c.wanderTimer <= 0) {
+        c.wanderTimer = 0.8 + Math.random() * 1.8; // change direction every 0.8–2.6s
+        c.wanderAngle += (Math.random() - 0.5) * Math.PI * 1.2;
+      }
+
+      // base direction towards player
+      const pdx = vPos.x - c.pos.x;
+      const pdz = vPos.z - c.pos.z;
+      const pd = Math.hypot(pdx, pdz) || 1;
+
+      // wander offset (small)
+      const wx = Math.cos(c.wanderAngle) * MON_WANDER;
+      const wz = Math.sin(c.wanderAngle) * MON_WANDER;
+
+      c.vel.x += ((pdx / pd) + wx) * MON_ACCEL * dt;
+      c.vel.z += ((pdz / pd) + wz) * MON_ACCEL * dt;
+
+      const fr = Math.exp(-MON_FRICTION * dt);
+      c.vel.x *= fr; c.vel.z *= fr;
+
+      const mspd = Math.hypot(c.vel.x, c.vel.z);
+      if (mspd > MON_MAXSPD) {
+        const kk = MON_MAXSPD / mspd;
+        c.vel.x *= kk; c.vel.z *= kk;
+      }
+
+      c.pos.x += c.vel.x * dt;
+      c.pos.z += c.vel.z * dt;
+      resolve(c.pos, 0.6, c.vel);
+
+      if (mspd > 0.5) {
+        const ta = Math.atan2(c.vel.x, c.vel.z);
+        let dh = (ta - c.heading) % (Math.PI * 2);
+        if (dh > Math.PI) dh -= Math.PI * 2;
+        if (dh < -Math.PI) dh += Math.PI * 2;
+        c.heading += dh * (1 - Math.exp(-MON_TURN * dt));
+      }
+
+      c.spd = mspd;
+    }
+
+    function hostCheckClarkCatch() {
+      if (role !== 'host' || clarkImmunity) return;
+      if (!clarks.length) return;
+      const caught = [];
+
+      const localCaught = clarks.some(c =>
+        Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1
+      );
+      if (localCaught) {
+        vPos.set(0, 0, 0);
+        appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
+        caught.push(myId);
+      }
+
+      allPlayers.forEach((p, id) => {
+        if (id === myId) return;
+        const hit = clarks.some(c =>
+          Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1
+        );
+        if (hit) {
+          caught.push(id);
+          const target = guests.find(g => g.peer === id);
+          if (target && target.open) {
+            try { target.send({ type: 'caught', id }); } catch (e) {}
+          }
+        }
+      });
+
+      if (caught.length > 0) resetAllClarks();
+    }
+
+    /* ============================================================
+       CLARK VISUAL UPDATE (both host and guest)
+       ============================================================ */
+    function updateClarkVisuals(dt, k) {
+      clarks.forEach(c => {
+        if (role === 'guest') {
+          const t = clarkTargets.get(c.id);
+          if (t) {
+            c.pos.x += (t.x - c.pos.x) * k;
+            c.pos.y += (t.y - c.pos.y) * k;
+            c.pos.z += (t.z - c.pos.z) * k;
+            let dr = t.rot - c.heading;
+            while (dr > Math.PI) dr -= Math.PI * 2;
+            while (dr < -Math.PI) dr += Math.PI * 2;
+            c.heading += dr * k;
+            c.spd = t.spd;
+          }
+        }
+
+        c.root.position.copy(c.pos);
+        c.root.rotation.y = c.heading;
+
+        const fwdX = Math.sin(c.heading), fwdZ = Math.cos(c.heading);
+        const lat = (c.vel.x * fwdZ - c.vel.z * fwdX);
+        const lean = C(-lat * 0.12, -0.7, 0.7);
+        c.root.rotation.z += (lean - c.root.rotation.z) * Math.min(1, dt * 6);
+        c.root.rotation.x = C(c.spd / MON_MAXSPD, 0, 1) * 0.12;
+
+        c.phase += dt * (c.spd * 2.4 + 4);
+        if (c.fallbackRig) {
+          const s = Math.sin(c.phase) * 1.1;
+          c.fallbackRig.legL.rotation.x = s;
+          c.fallbackRig.legR.rotation.x = -s;
+          c.fallbackRig.armL.rotation.x = -s * 0.8;
+          c.fallbackRig.armR.rotation.x = s * 0.8;
+        }
+        if (c.mixer) {
+          c.mixer.update(dt);
+        }
+      });
+    }
+
+    function nearestClarkDistance() {
+      if (!clarks.length) return Infinity;
+      let m = Infinity;
+      for (const c of clarks) {
+        const d = Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z);
+        if (d < m) m = d;
+      }
+      return m;
+    }
+
+    /* ============================================================
+       LOOP
+       ============================================================ */
+    const clock = new _T.Clock();
+    let vWalk = 0;
+
+    function step(dt) {
+      nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
+
+      const k = 1 - Math.exp(-10 * dt);
+      oYaw   += (tYaw   - oYaw)   * k;
+      oPitch += (tPitch - oPitch) * k;
+      oDist  += (tDist  - oDist)  * k;
+
+      const fx = -Math.sin(oYaw);
+      const fz = -Math.cos(oYaw);
+      
+      if (holding) {
+        vPos.x += fx * MOVE_SPEED * dt;
+        vPos.z += fz * MOVE_SPEED * dt;
+        resolve(vPos, 0.4, null);
+        vWalk += dt * MOVE_SPEED * 2.6;
+        vHeading.y = Math.atan2(fx, fz);
+      }
+
+      viewer.position.copy(vPos);
+      viewer.rotation.y = vHeading.y;
+      if (vRig) {
+        const s = Math.sin(vWalk) * 0.9;
+        vRig.armL.rotation.x = s; vRig.armR.rotation.x = -s;
+        vRig.legL.rotation.x = -s; vRig.legR.rotation.x = s;
+      }
+      if (vMix) vMix.update(dt);
+
+      if (role === 'host') {
+        for (const c of clarks) updateClarkPhysics(c, dt);
+        hostCheckClarkCatch();
+      }
+
+      updateClarkVisuals(dt, k);
+
+      const near = nearestClarkDistance();
+      if (themeEl) {
+        const wantAudible = clarks.length > 0;
+        if (wantAudible) {
+          if (near < 38) {
+            if (themeEl.paused) themeEl.play().catch(() => {});
+            const t = C(1 - (near - 1) / 37, 0, 1);
+            const targetVol = 0.05 + t * 0.95;
+            themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
+          } else {
+            themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
+            if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
+          }
+        } else if (!themeEl.paused) {
+          themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
+          if (themeEl.volume < 0.01) themeEl.pause();
+        }
+      }
+
+      const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
+      const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
+
+      const dir = new _T.Vector3(
+        Math.sin(oYaw) * Math.cos(oPitch),
+        -Math.sin(oPitch),
+        Math.cos(oYaw) * Math.cos(oPitch)
+      ).normalize();
+
+      const d = camLimit(target, dir, oDist);
+      const desired = target.clone().addScaledVector(dir, d);
+      if (desired.y < 0.22) desired.y = 0.22;
+
+      const nearEase = C((2.4 - oDist) / 1.6, 0, 1);
+      const ease = nearEase * nearEase * (3 - 2 * nearEase);
+
+      cam.position.lerpVectors(desired, head, ease);
+
+      const m3 = new _T.Matrix4().lookAt(cam.position, target, new _T.Vector3(0, 1, 0));
+      const q3 = new _T.Quaternion().setFromRotationMatrix(m3);
+      const e1 = new _T.Euler(oPitch, oYaw, 0, 'YXZ');
+      const q1 = new _T.Quaternion().setFromEuler(e1);
+      cam.quaternion.copy(q3).slerp(q1, ease);
+
+      viewerVis.visible = true;
+
+      focus.position.set(vPos.x, vPos.y + 1.9, vPos.z);
+      key.position.set(vPos.x + 4, 12, vPos.z + 4);
+      key.target.position.copy(vPos);
+
+      if (joined && myUser) {
+        netAccum += dt;
+        if (netAccum >= 0.1) {
+          netAccum = 0;
+          if (role === 'host') sendHostTick();
+          else if (role === 'guest') sendGuestUpdate();
+        }
+        updateRemoteAvatars(dt);
+      }
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      step(dt);
+      R.render(scene, cam);
+    }
+
+    /* ============================================================
+       BOOT
+       ============================================================ */
+    resize();
+    appendChat({ system: true, text: 'Welcome to Spatial Walk.' });
+
+    loadAllAssets()
+      .catch((err) => { console.warn('Asset load error', err); })
+      .finally(() => {
+        setLoad(100, 'ready');
+        setTimeout(() => showLogin(), 900);
+      });
+  </script>
 </body>
 </html>
