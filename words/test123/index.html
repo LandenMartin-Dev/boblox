@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spatial Walk — Multiplayer</title>
+<title>boblox -- hussrooms</title>
 <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
 <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 <style>
@@ -84,7 +84,7 @@
     <div id="hud-title"></div>
     <div id="hud-status">○ idle</div>
   </div>
-  <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
+  <div id="hint">hold click to advance · shift to sprint · move mouse to aim · scroll to dolly</div>
 </div>
 
 <div id="chat-panel">
@@ -135,7 +135,7 @@ const yieldFrame = () => new Promise(r => requestAnimationFrame(() => r()));
    MODULE LOADING
    ============================================================ */
 setLoad(3, 'loading three.js…');
-const TMO = 6000;
+const TMO = 10000;
 const _ti = (u) => Promise.race([
   import(u),
   new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
@@ -366,19 +366,16 @@ const mkBox = (w, h, d, mat) => {
 const viewer = new _T.Group(); scene.add(viewer);
 const viewerVis = new _T.Group(); viewer.add(viewerVis);
 
-/* Clark group (each individual Clark is its own group added to scene) */
 const clarkGroup = new _T.Group(); scene.add(clarkGroup);
 
 let vRig = null, vMix = null;
 let localLabelSprite = null;
 
-/* Loaded player model template — used for cloning to remote players */
 let playerModelTemplate = null;
 let playerModelAnimations = [];
 let playerModelIdleClip = null;
 let playerModelHeight = 1.85;
 
-/* Loaded entity model template — used for cloning to each Clark */
 let entityModelTemplate = null;
 let entityModelAnimations = [];
 let entityModelWalkClip = null;
@@ -446,7 +443,6 @@ function makeLabel(nick, title, color, isHost) {
 
   const nameY = boxY + (hasTitle ? 30 : boxH / 2);
 
-  // Draw crown SVG-ish path if host
   let textOffsetX = 0;
   if (isHost) {
     const cx = c.width / 2 - 90;
@@ -554,12 +550,17 @@ async function firstModel(paths) {
   for (const url of paths) {
     const ext = url.split('.').pop().toLowerCase();
     try {
-      if (ext === 'fbx' && _FL) return { object: await new _FL().loadAsync(url), animations: [] };
+      if (ext === 'fbx' && _FL) {
+        const obj = await _FL.loadAsync(url);
+        return { object: obj, animations: [] };
+      }
       if ((ext === 'glb' || ext === 'gltf') && _GL) {
         const g = await _GL.loadAsync(url);
         return { object: g.scene, animations: g.animations || [] };
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Failed to load model at:', url, e);
+    }
   }
   return null;
 }
@@ -604,9 +605,12 @@ function loadAudio(url, onProgress) {
 
 async function loadAllAssets() {
   setLoad(78, 'loading figure model…'); await yieldFrame();
+  
+  // Enforce relative paths for GitHub pages by prefixing ./
+  const playerPath = './assets/player.fbx';
   const [vM, vT] = await Promise.all([
-    firstModel(['assets/player.fbx', 'assets/player.glb', 'assets/player.gltf']),
-    firstTex(['assets/texters/player/player', 'assets/texters/player/texture'])
+    firstModel([playerPath, './assets/player.glb', './assets/player.gltf']),
+    firstTex(['./assets/texters/player/player', './assets/texters/player/texture'])
   ]);
   setLoad(84, 'applying figure…'); await yieldFrame();
   if (vM) {
@@ -625,15 +629,15 @@ async function loadAllAssets() {
   setLoad(88, 'loading entity model…'); await yieldFrame();
   const [eM, eT] = await Promise.all([
     firstModel([
-      'assets/entaty.glb', 'assets/entaty.gltf',
-      'assets/entity.glb', 'assets/entity.gltf',
-      'assets/entaty.fbx', 'assets/entity.fbx'
+      './assets/entaty.glb', './assets/entaty.gltf',
+      './assets/entity.glb', './assets/entity.gltf',
+      './assets/entaty.fbx', './assets/entity.fbx'
     ]),
     firstTex([
-      'assets/texters/entaty/entaty',
-      'assets/texters/entaty/texture',
-      'assets/texters/entity/entity',
-      'assets/texters/entity/texture'
+      './assets/texters/entaty/entaty',
+      './assets/texters/entaty/texture',
+      './assets/texters/entity/entity',
+      './assets/texters/entity/texture'
     ])
   ]);
   setLoad(93, 'applying entity…'); await yieldFrame();
@@ -645,10 +649,13 @@ async function loadAllAssets() {
       const rc = eM.animations.find(c => /run|walk|move/i.test(c.name)) || eM.animations[0];
       entityModelWalkClip = rc || null;
     }
+    console.log("Entity model loaded successfully.");
+  } else {
+    console.error("FAILED to load entity model. Check your assets/ folder or file extensions (case-sensitive on GitHub Pages).");
   }
 
   setLoad(96, 'loading theme…'); await yieldFrame();
-  themeEl = await loadAudio('assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
+  themeEl = await loadAudio('./assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
   setLoad(99, 'finishing…'); await yieldFrame();
   setLoad(100, 'ready');
 }
@@ -658,21 +665,24 @@ async function loadAllAssets() {
    ============================================================ */
 const vPos = new _T.Vector3(0, 0, 0);
 
-let oYaw = 0, oPitch = 0.18, oDist = 6.5;
-let tYaw = 0, tPitch = 0.18, tDist = 6.5;
+let oYaw = 0, oPitch = 0.18, oDist = 8.5; // Start further back
+let tYaw = 0, tPitch = 0.18, tDist = 8.5;
 
 let holding = false;
+let isSprinting = false;
+
 const WALK_SPEED = 9.0;
+const SPRINT_SPEED = 16.0; // Faster than MON_MAXSPD
 const vHeading = { y: Math.PI };
 
 const MON_ACCEL   = 55;
-const MON_MAXSPD  = 15;
+const MON_MAXSPD  = 14.5; // Slightly slower than SPRINT_SPEED
 const MON_FRICTION = 0.35;
 const MON_TURN     = 3.0;
 
 /* ---- Multiple Clarks ---- */
 const MAX_CLARKS = 12;
-const clarks = [];   // each: { id, pos, vel, heading, phase, root, mixer, fallbackRig }
+const clarks = [];   
 
 let clarkImmunity = false;
 
@@ -779,9 +789,6 @@ function updateClarkCountUI() {
   const el = document.getElementById('clark-count');
   if (el) el.textContent = 'Clarks: ' + clarks.length + ' / ' + MAX_CLARKS;
 }
-
-/* Start with one Clark so it's not empty */
-/* (spawn after assets are loaded, in startGame / boot) */
 
 let nWall = [], nTimer = 0;
 function refreshNear() {
@@ -917,12 +924,10 @@ let hostId = null;
 let netAccum = 0;
 let retryLock = false;
 
-const allPlayers = new Map();      // host: peerId -> { nick,title,x,y,z,rot,spd,isHost }
-const remotePlayers = new Map();   // guest: peerId -> same shape
-const remoteAvatars = new Map();   // peerId -> { root, rig, mixer, phase }
-
-/* Guest-side Clark target sync (from host ticks) */
-const clarkTargets = new Map();    // id -> { x,y,z,rot,spd }
+const allPlayers = new Map();      
+const remotePlayers = new Map();   
+const remoteAvatars = new Map();   
+const clarkTargets = new Map();    
 
 const chatHistory = [];
 const MAX_CHAT = 50;
@@ -1023,7 +1028,7 @@ function onGuest(conn) {
   players[myId] = {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? WALK_SPEED : 0, isHost: true,
+    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0, isHost: true,
   };
 
   try {
@@ -1102,14 +1107,12 @@ function handleFromHost(msg) {
     if (msg.hostId) hostId = msg.hostId;
     if (typeof msg.clarkImmunity === 'boolean') clarkImmunity = msg.clarkImmunity;
 
-    /* Sync clarks */
     if (Array.isArray(msg.clarks)) {
       const seen = new Set();
       msg.clarks.forEach(sc => {
         seen.add(sc.id);
         let c = clarks.find(x => x.id === sc.id);
         if (!c) {
-          /* create guest-side clark */
           const created = spawnClark(sc.x, sc.z);
           if (created) {
             created.id = sc.id;
@@ -1120,7 +1123,6 @@ function handleFromHost(msg) {
           clarkTargets.set(sc.id, sc);
         }
       });
-      /* remove clarks not present in tick */
       for (let i = clarks.length - 1; i >= 0; i--) {
         if (!seen.has(clarks[i].id)) removeClark(clarks[i].id);
       }
@@ -1173,7 +1175,7 @@ function sendHostTick() {
   allPlayers.set(myId, {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? WALK_SPEED : 0, isHost: true,
+    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0, isHost: true,
   });
 
   const players = {};
@@ -1198,7 +1200,7 @@ function sendGuestUpdate() {
     type: 'update',
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
-    spd: holding ? WALK_SPEED : 0,
+    spd: holding ? (isSprinting ? SPRINT_SPEED : WALK_SPEED) : 0,
   };
   try { hostConn.send(msg); } catch (e) {}
 }
@@ -1308,7 +1310,7 @@ function updateRemoteAvatars(dt) {
 
     if (av.rig) {
       if (p.spd > 0.1) {
-        av.phase += dt * 9;
+        av.phase += dt * (p.spd > 12 ? 14 : 9);
         const s = Math.sin(av.phase) * 0.85;
         av.rig.armL.rotation.x = s;
         av.rig.armR.rotation.x = -s;
@@ -1579,6 +1581,14 @@ cv.addEventListener('wheel', (e) => {
   tDist = C(tDist + d * 0.01, 1.5, 14);
 }, { passive: false });
 
+// Sprint Listener
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Shift') isSprinting = true;
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'Shift') isSprinting = false;
+});
+
 function resize() {
   cam.aspect = innerWidth / innerHeight;
   cam.updateProjectionMatrix();
@@ -1721,11 +1731,13 @@ function step(dt) {
 
   const fx = -Math.sin(oYaw);
   const fz = -Math.cos(oYaw);
+  
   if (holding) {
-    vPos.x += fx * WALK_SPEED * dt;
-    vPos.z += fz * WALK_SPEED * dt;
+    const currentSpeed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
+    vPos.x += fx * currentSpeed * dt;
+    vPos.z += fz * currentSpeed * dt;
     resolve(vPos, 0.4, null);
-    vWalk += dt * WALK_SPEED * 2.6;
+    vWalk += dt * currentSpeed * 2.6;
     vHeading.y = Math.atan2(fx, fz);
   }
 
