@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>boblox | hussrooms</title>
+<title>Spatial Walk — Multiplayer</title>
 <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
 <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 <style>
@@ -29,13 +29,15 @@
   #chat-input:focus { border-color: #8a7430; }
   #chat-input:disabled { opacity: 0.35; }
 
-  #admin-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(13,10,5,0.97); border: 1px solid #8a7430; border-radius: 8px; padding: 18px 20px; z-index: 20; min-width: 280px; display: none; pointer-events: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.7); }
+  #admin-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(13,10,5,0.97); border: 1px solid #8a7430; border-radius: 8px; padding: 18px 20px; z-index: 20; min-width: 300px; display: none; pointer-events: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.7); }
   #admin-panel.open { display: block; }
-  #admin-panel .title { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #e0c86a; margin-bottom: 14px; text-align: center; padding-bottom: 10px; border-bottom: 1px solid #3a3320; }
-  #admin-panel button { display: block; width: 100%; background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 9px 12px; margin-bottom: 6px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; text-align: left; transition: background 0.15s, border-color 0.15s; }
+  #admin-panel .title { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: #e0c86a; margin-bottom: 14px; text-align: center; padding-bottom: 10px; border-bottom: 1px solid #3a3320; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #admin-panel button { display: flex; align-items: center; gap: 10px; width: 100%; background: #221c0e; border: 1px solid #3a3320; color: #fff5d2; padding: 9px 12px; margin-bottom: 6px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; text-align: left; transition: background 0.15s, border-color 0.15s; }
   #admin-panel button:hover { background: #2f2714; border-color: #8a7430; }
   #admin-panel button.close { margin-top: 10px; background: #2a1a0f; border-color: #5a3515; color: #ff9955; }
   #admin-panel button.close:hover { background: #3a2215; }
+  #admin-panel .icon { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #admin-panel .clark-count { text-align: center; font-size: 11px; color: #d8c98a; opacity: .75; margin-bottom: 10px; letter-spacing: .08em; }
 
   #loader { position: fixed; inset: 0; background: #0d0a05; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.6s ease; }
   #loader.hidden { opacity: 0; pointer-events: none; }
@@ -91,15 +93,20 @@
 </div>
 
 <div id="admin-panel">
-  <div class="title">Admin Panel · Host Only</div>
-  <button data-act="add-clark">➕ Add Clark</button>
-  <button data-act="remove-clark">➖ Remove Clark</button>
-  <button data-act="toggle-immunity">🛡 Toggle Immunity</button>
-  <button data-act="teleport-clark">📍 Teleport Clark to Me</button>
-  <button data-act="reset-clark">🔄 Reset Clark</button>
-  <button data-act="broadcast">📢 Broadcast Message</button>
-  <button data-act="kick-all">🚪 Kick All Guests</button>
-  <button data-act="close" class="close">✕ Close</button>
+  <div class="title">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/></svg>
+    Admin Panel · Host Only
+  </div>
+  <div class="clark-count" id="clark-count">Clarks: 0 / 12</div>
+  <button data-act="add-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add Clark</button>
+  <button data-act="remove-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Remove Clark</button>
+  <button data-act="clear-clarks"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear All Clarks</button>
+  <button data-act="toggle-immunity"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/><path d="M9 12l2 2 4-4"/></svg>Toggle Immunity</button>
+  <button data-act="teleport-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s-7-6.5-7-12a7 7 0 1114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>Teleport Clarks to Me</button>
+  <button data-act="reset-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1015-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Reset Clarks</button>
+  <button data-act="broadcast"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 001 1h2l4 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a10 10 0 010 14"/></svg>Broadcast Message</button>
+  <button data-act="kick-all"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Kick All Guests</button>
+  <button data-act="close" class="close"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Close</button>
 </div>
 
 <script type="module">
@@ -118,7 +125,7 @@ function setLoad(pct, label) {
   if (loadPct >= 100) {
     setTimeout(() => {
       loaderEl.classList.add('hidden');
-      setTimeout(() => loaderEl.remove(), 700);
+      setTimeout(() => { if (loaderEl.parentNode) loaderEl.remove(); }, 700);
     }, 220);
   }
 }
@@ -128,10 +135,10 @@ const yieldFrame = () => new Promise(r => requestAnimationFrame(() => r()));
    MODULE LOADING
    ============================================================ */
 setLoad(3, 'loading three.js…');
-const TMO = 4000;
+const TMO = 6000;
 const _ti = (u) => Promise.race([
   import(u),
-  new Promise((_, r) => setTimeout(() => r(new Error('t')), TMO)),
+  new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
 ]);
 async function _ta(urls) {
   for (const u of urls) { try { return await _ti(u); } catch (e) {} }
@@ -161,6 +168,7 @@ try { const m = await _ta([
 setLoad(28, 'loading cloner…');
 await yieldFrame();
 try { const m = await _ta([
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
   'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
 ]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
 setLoad(30, 'building scene…');
@@ -357,11 +365,11 @@ const mkBox = (w, h, d, mat) => {
 
 const viewer = new _T.Group(); scene.add(viewer);
 const viewerVis = new _T.Group(); viewer.add(viewerVis);
-const drifter = new _T.Group(); scene.add(drifter);
-const drifterVis = new _T.Group(); drifter.add(drifterVis);
 
-let vRig = null, dRig = null;
-let vMix = null, dMix = null;
+/* Clark group (each individual Clark is its own group added to scene) */
+const clarkGroup = new _T.Group(); scene.add(clarkGroup);
+
+let vRig = null, vMix = null;
 let localLabelSprite = null;
 
 /* Loaded player model template — used for cloning to remote players */
@@ -369,6 +377,12 @@ let playerModelTemplate = null;
 let playerModelAnimations = [];
 let playerModelIdleClip = null;
 let playerModelHeight = 1.85;
+
+/* Loaded entity model template — used for cloning to each Clark */
+let entityModelTemplate = null;
+let entityModelAnimations = [];
+let entityModelWalkClip = null;
+let entityModelHeight = 2.2;
 
 function buildVRig() {
   const root = new _T.Group();
@@ -386,7 +400,7 @@ function buildVRig() {
     legL: lb(-.17, .7, .27, .7, .3, pn), legR: lb(.17, .7, .27, .7, .3, pn) };
 }
 
-function buildDRig() {
+function buildClarkFallbackRig() {
   const root = new _T.Group();
   const su = new _T.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
   const sk = new _T.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
@@ -408,10 +422,9 @@ function buildDRig() {
 }
 
 vRig = buildVRig(); viewerVis.add(vRig.root);
-dRig = buildDRig(); drifterVis.add(dRig.root);
 
 /* ============================================================
-   NAME LABELS
+   NAME LABELS (SVG crown, no emoji)
    ============================================================ */
 function makeLabel(nick, title, color, isHost) {
   const c = document.createElement('canvas');
@@ -431,10 +444,32 @@ function makeLabel(nick, title, color, isHost) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const displayName = isHost ? '♛ ' + nick : nick;
+  const nameY = boxY + (hasTitle ? 30 : boxH / 2);
+
+  // Draw crown SVG-ish path if host
+  let textOffsetX = 0;
+  if (isHost) {
+    const cx = c.width / 2 - 90;
+    const cy = nameY - 12;
+    ctx.save();
+    ctx.fillStyle = '#ff9955';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 16);
+    ctx.lineTo(cx + 4, cy + 4);
+    ctx.lineTo(cx + 10, cy + 10);
+    ctx.lineTo(cx + 16, cy);
+    ctx.lineTo(cx + 22, cy + 10);
+    ctx.lineTo(cx + 28, cy + 4);
+    ctx.lineTo(cx + 32, cy + 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    textOffsetX = 20;
+  }
+
   ctx.font = 'bold 38px system-ui, sans-serif';
   ctx.fillStyle = color || '#fff5d2';
-  ctx.fillText(displayName, c.width / 2, boxY + (hasTitle ? 30 : boxH / 2));
+  ctx.fillText(nick, c.width / 2 + textOffsetX, nameY);
 
   if (hasTitle) {
     ctx.font = '22px system-ui, sans-serif';
@@ -460,7 +495,6 @@ function cloneModel(source) {
   if (_SU) {
     try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
   }
-  // Fallback: deep clone — works for non-skinned static models
   try {
     const isSkinned = (() => { let s = false; source.traverse(o => { if (o.isSkinnedMesh) s = true; }); return s; })();
     if (!isSkinned) return source.clone(true);
@@ -587,19 +621,29 @@ async function loadAllAssets() {
     }
   }
 
+  /* ---- ENTITY / CLARK ---- */
   setLoad(88, 'loading entity model…'); await yieldFrame();
-  const [dM, dT] = await Promise.all([
-    firstModel(['assets/entaty.glb', 'assets/entaty.gltf', 'assets/entity.glb', 'assets/entity.gltf']),
-    firstTex(['assets/texters/entity/entity', 'assets/texters/entity/texture'])
+  const [eM, eT] = await Promise.all([
+    firstModel([
+      'assets/entaty.glb', 'assets/entaty.gltf',
+      'assets/entity.glb', 'assets/entity.gltf',
+      'assets/entaty.fbx', 'assets/entity.fbx'
+    ]),
+    firstTex([
+      'assets/texters/entaty/entaty',
+      'assets/texters/entaty/texture',
+      'assets/texters/entity/entity',
+      'assets/texters/entity/texture'
+    ])
   ]);
   setLoad(93, 'applying entity…'); await yieldFrame();
-  if (dM) {
-    const m = fit(dM.object, 2.2); prep(m, dT);
-    drifterVis.remove(dRig.root); drifterVis.add(m); dRig = null;
-    if (dM.animations.length) {
-      dMix = new _T.AnimationMixer(m);
-      const rc = dM.animations.find(c => /run|walk|move/i.test(c.name)) || dM.animations[0];
-      if (rc) dMix.clipAction(rc).play();
+  if (eM) {
+    const m = fit(eM.object, entityModelHeight); prep(m, eT);
+    entityModelTemplate = m;
+    entityModelAnimations = eM.animations || [];
+    if (eM.animations.length) {
+      const rc = eM.animations.find(c => /run|walk|move/i.test(c.name)) || eM.animations[0];
+      entityModelWalkClip = rc || null;
     }
   }
 
@@ -613,9 +657,6 @@ async function loadAllAssets() {
    STATE
    ============================================================ */
 const vPos = new _T.Vector3(0, 0, 0);
-const dPos = new _T.Vector3(30, 0, 30);
-const dVel = new _T.Vector3(0, 0, 0);
-let dHeading = 0;
 
 let oYaw = 0, oPitch = 0.18, oDist = 6.5;
 let tYaw = 0, tPitch = 0.18, tDist = 6.5;
@@ -628,6 +669,119 @@ const MON_ACCEL   = 55;
 const MON_MAXSPD  = 15;
 const MON_FRICTION = 0.35;
 const MON_TURN     = 3.0;
+
+/* ---- Multiple Clarks ---- */
+const MAX_CLARKS = 12;
+const clarks = [];   // each: { id, pos, vel, heading, phase, root, mixer, fallbackRig }
+
+let clarkImmunity = false;
+
+function makeClarkId() {
+  return 'c' + Math.random().toString(36).slice(2, 9);
+}
+
+function spawnClark(x, z) {
+  if (clarks.length >= MAX_CLARKS) return null;
+
+  let root = null;
+  let mixer = null;
+  let fallbackRig = null;
+
+  const cloned = cloneModel(entityModelTemplate);
+  if (cloned) {
+    root = new _T.Group();
+    root.add(cloned);
+    if (entityModelWalkClip) {
+      try {
+        mixer = new _T.AnimationMixer(cloned);
+        const act = mixer.clipAction(entityModelWalkClip);
+        act.play();
+        act.time = Math.random() * act.getClip().duration;
+      } catch (e) { mixer = null; }
+    }
+  } else {
+    fallbackRig = buildClarkFallbackRig();
+    root = fallbackRig.root;
+  }
+
+  const id = makeClarkId();
+  if (x == null || z == null) {
+    do {
+      x = (Math.random() - 0.5) * (MS - 20);
+      z = (Math.random() - 0.5) * (MS - 20);
+    } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+  }
+
+  const heading = Math.random() * Math.PI * 2;
+  root.position.set(x, 0, z);
+  root.rotation.y = heading;
+  clarkGroup.add(root);
+
+  const c = {
+    id,
+    pos: new _T.Vector3(x, 0, z),
+    vel: new _T.Vector3(0, 0, 0),
+    heading,
+    phase: Math.random() * Math.PI * 2,
+    spd: 0,
+    root,
+    mixer,
+    fallbackRig,
+  };
+  clarks.push(c);
+  updateClarkCountUI();
+  return c;
+}
+
+function removeClark(id) {
+  const i = clarks.findIndex(c => c.id === id);
+  if (i < 0) return;
+  const c = clarks[i];
+  if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+  clarkGroup.remove(c.root);
+  clarks.splice(i, 1);
+  updateClarkCountUI();
+}
+
+function removeLastClark() {
+  if (!clarks.length) return;
+  removeClark(clarks[clarks.length - 1].id);
+}
+
+function clearAllClarks() {
+  while (clarks.length) {
+    const c = clarks.pop();
+    if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+    clarkGroup.remove(c.root);
+  }
+  updateClarkCountUI();
+}
+
+function addClarkRandom() {
+  if (clarks.length >= MAX_CLARKS) return;
+  spawnClark();
+}
+
+function resetAllClarks() {
+  clarks.forEach(c => {
+    let x, z;
+    do {
+      x = (Math.random() - 0.5) * (MS - 20);
+      z = (Math.random() - 0.5) * (MS - 20);
+    } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+    c.pos.set(x, 0, z);
+    c.vel.set(0, 0, 0);
+    c.heading = Math.random() * Math.PI * 2;
+  });
+}
+
+function updateClarkCountUI() {
+  const el = document.getElementById('clark-count');
+  if (el) el.textContent = 'Clarks: ' + clarks.length + ' / ' + MAX_CLARKS;
+}
+
+/* Start with one Clark so it's not empty */
+/* (spawn after assets are loaded, in startGame / boot) */
 
 let nWall = [], nTimer = 0;
 function refreshNear() {
@@ -688,18 +842,6 @@ function camLimit(target, dir, maxD) {
   return maxD;
 }
 
-function resetMonster() {
-  let px, pz;
-  do {
-    px = (Math.random() - 0.5) * (MS - 20);
-    pz = (Math.random() - 0.5) * (MS - 20);
-  } while (Math.hypot(px - vPos.x, pz - vPos.z) < 30);
-  dPos.set(px, 0, pz);
-  dVel.set(0, 0, 0);
-  dHeading = Math.random() * Math.PI * 2;
-}
-resetMonster();
-
 /* ============================================================
    AUTH — boblox.users
    ============================================================ */
@@ -715,9 +857,9 @@ function loadBobloxUsers() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const users = {};
-    Object.keys(parsed).forEach(key => {
-      const rec = parsed[key];
-      if (rec && typeof rec === 'object') users[key] = rec;
+    Object.keys(parsed).forEach(k => {
+      const rec = parsed[k];
+      if (rec && typeof rec === 'object') users[k] = rec;
     });
     return users;
   } catch (e) {
@@ -764,24 +906,23 @@ document.getElementById('new-nick').addEventListener('keydown', (e) => {
 /* ============================================================
    MULTIPLAYER NETWORKING
    ============================================================ */
-const ROOM_ID = 'spatial-walk-mp-v3';
+const ROOM_ID = 'spatial-walk-mp-v4';
 
 let peer = null;
 let role = null;
 let hostConn = null;
 let guests = [];
 let myId = null;
-let hostId = null;            // peer id of the current host (for guest-side host crown)
+let hostId = null;
 let netAccum = 0;
 let retryLock = false;
 
-const allPlayers = new Map();      // host: peerId -> { nick,title,x,y,z,rot,spd }
+const allPlayers = new Map();      // host: peerId -> { nick,title,x,y,z,rot,spd,isHost }
 const remotePlayers = new Map();   // guest: peerId -> same shape
 const remoteAvatars = new Map();   // peerId -> { root, rig, mixer, phase }
 
-let clarkActive = true;
-let clarkImmunity = false;
-const clarkTarget = { x: 30, y: 0, z: 30, rot: 0, spd: 0 };
+/* Guest-side Clark target sync (from host ticks) */
+const clarkTargets = new Map();    // id -> { x,y,z,rot,spd }
 
 const chatHistory = [];
 const MAX_CHAT = 50;
@@ -803,12 +944,14 @@ function initNet() {
   clearAllAvatars();
   allPlayers.clear();
   remotePlayers.clear();
+  clarkTargets.clear();
   setHudStatus('○ connecting…');
 
   const p = new Peer(ROOM_ID, { debug: 0 });
   peer = p;
 
   p.on('open', (id) => {
+    if (peer !== p) return;
     myId = id;
     hostId = id;
     role = 'host';
@@ -824,6 +967,7 @@ function initNet() {
   p.on('connection', onGuest);
 
   p.on('error', (err) => {
+    if (peer !== p) return;
     if (err && err.type === 'unavailable-id') {
       destroyPeer();
       joinAsGuest();
@@ -842,17 +986,20 @@ function joinAsGuest() {
   clearAllAvatars();
   allPlayers.clear();
   remotePlayers.clear();
+  clarkTargets.clear();
   setHudStatus('○ joining…');
 
   const p = new Peer({ debug: 0 });
   peer = p;
 
   p.on('open', (id) => {
+    if (peer !== p) return;
     myId = id;
     const conn = p.connect(ROOM_ID, { reliable: true });
     hostConn = conn;
 
     conn.on('open', () => {
+      if (peer !== p) return;
       role = 'guest';
       updateOnlineCount();
       appendChat({ system: true, text: 'Joined the room as ' + myUser.nick + '.' });
@@ -860,16 +1007,12 @@ function joinAsGuest() {
     });
 
     conn.on('data', handleFromHost);
-
-    conn.on('close', () => scheduleRetry());
-    conn.on('error', () => scheduleRetry());
+    conn.on('close', () => { if (peer === p) scheduleRetry(); });
+    conn.on('error', () => { if (peer === p) scheduleRetry(); });
   });
 
-  p.on('error', () => scheduleRetry());
-
-  p.on('disconnected', () => {
-    try { p.reconnect(); } catch (e) {}
-  });
+  p.on('error', () => { if (peer === p) scheduleRetry(); });
+  p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
 }
 
 function onGuest(conn) {
@@ -877,7 +1020,6 @@ function onGuest(conn) {
 
   const players = {};
   allPlayers.forEach((p, id) => { players[id] = p; });
-  // Make sure host is in there with up-to-date position
   players[myId] = {
     nick: myUser.nick, title: myUser.title,
     x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
@@ -888,11 +1030,8 @@ function onGuest(conn) {
     conn.send({
       type: 'tick',
       hostId: myId,
-      clark: {
-        x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
-        spd: Math.hypot(dVel.x, dVel.z),
-        active: clarkActive, immunity: clarkImmunity,
-      },
+      clarks: clarks.map(serializeClark),
+      clarkImmunity,
       players,
     });
   } catch (e) {}
@@ -916,6 +1055,15 @@ function onGuest(conn) {
   updateOnlineCount();
 }
 
+function serializeClark(c) {
+  return {
+    id: c.id,
+    x: c.pos.x, y: c.pos.y, z: c.pos.z,
+    rot: c.heading,
+    spd: c.spd,
+  };
+}
+
 function handleFromGuest(msg, conn) {
   if (!msg || !msg.type) return;
 
@@ -929,7 +1077,7 @@ function handleFromGuest(msg, conn) {
     const prev = allPlayers.get(conn.peer);
     if (!prev) {
       allPlayers.set(conn.peer, data);
-      remotePlayers.set(conn.peer, data);      // ← FIX: keep remotePlayers in sync on host too
+      remotePlayers.set(conn.peer, data);
       ensureRemoteAvatar(conn.peer, data);
       updateOnlineCount();
     } else {
@@ -952,15 +1100,30 @@ function handleFromHost(msg) {
 
   if (msg.type === 'tick') {
     if (msg.hostId) hostId = msg.hostId;
+    if (typeof msg.clarkImmunity === 'boolean') clarkImmunity = msg.clarkImmunity;
 
-    if (msg.clark) {
-      clarkActive = !!msg.clark.active;
-      clarkImmunity = !!msg.clark.immunity;
-      clarkTarget.x = msg.clark.x;
-      clarkTarget.y = msg.clark.y;
-      clarkTarget.z = msg.clark.z;
-      clarkTarget.rot = msg.clark.rot;
-      clarkTarget.spd = msg.clark.spd;
+    /* Sync clarks */
+    if (Array.isArray(msg.clarks)) {
+      const seen = new Set();
+      msg.clarks.forEach(sc => {
+        seen.add(sc.id);
+        let c = clarks.find(x => x.id === sc.id);
+        if (!c) {
+          /* create guest-side clark */
+          const created = spawnClark(sc.x, sc.z);
+          if (created) {
+            created.id = sc.id;
+            c = created;
+          }
+        }
+        if (c) {
+          clarkTargets.set(sc.id, sc);
+        }
+      });
+      /* remove clarks not present in tick */
+      for (let i = clarks.length - 1; i >= 0; i--) {
+        if (!seen.has(clarks[i].id)) removeClark(clarks[i].id);
+      }
     }
 
     if (msg.players) {
@@ -994,7 +1157,7 @@ function handleFromHost(msg) {
   } else if (msg.type === 'caught') {
     if (msg.id === myId) {
       vPos.set(0, 0, 0);
-      appendChat({ system: true, text: 'Clark caught you — back to spawn.' });
+      appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
     }
   } else if (msg.type === 'kicked') {
     appendChat({ system: true, text: 'You were removed from the room by the host.' });
@@ -1019,11 +1182,8 @@ function sendHostTick() {
   const msg = {
     type: 'tick',
     hostId: myId,
-    clark: {
-      x: dPos.x, y: dPos.y, z: dPos.z, rot: dHeading,
-      spd: Math.hypot(dVel.x, dVel.z),
-      active: clarkActive, immunity: clarkImmunity,
-    },
+    clarks: clarks.map(serializeClark),
+    clarkImmunity,
     players,
   };
 
@@ -1087,7 +1247,6 @@ function ensureRemoteAvatar(id, data) {
   let rig = null;
   let mixer = null;
 
-  // Try to clone the loaded player model first
   const cloned = cloneModel(playerModelTemplate);
   if (cloned) {
     tintClone(cloned, hue);
@@ -1100,7 +1259,6 @@ function ensureRemoteAvatar(id, data) {
       } catch (e) { mixer = null; }
     }
   } else {
-    // Fallback: procedural rig
     rig = buildVRig();
     root = rig.root;
     root.traverse(o => {
@@ -1127,8 +1285,6 @@ function removeRemotePlayer(id) {
   if (!av) return;
   if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
   scene.remove(av.root);
-  // Don't dispose materials/geometry here because cloned models share
-  // geometry with the template and maps may be shared between clones.
   remoteAvatars.delete(id);
   updateOnlineCount();
 }
@@ -1136,7 +1292,6 @@ function removeRemotePlayer(id) {
 function updateRemoteAvatars(dt) {
   const k = 1 - Math.exp(-12 * dt);
   remoteAvatars.forEach((av, id) => {
-    // ← FIX: on host read from allPlayers, on guest from remotePlayers
     const p = (role === 'host') ? allPlayers.get(id) : remotePlayers.get(id);
     if (!p) return;
 
@@ -1151,7 +1306,6 @@ function updateRemoteAvatars(dt) {
 
     if (av.mixer) av.mixer.update(dt);
 
-    // Procedural walking anim only for fallback rigs
     if (av.rig) {
       if (p.spd > 0.1) {
         av.phase += dt * 9;
@@ -1235,6 +1389,7 @@ let adminPanelOpen = false;
 function toggleAdminPanel(force) {
   adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
   document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
+  if (adminPanelOpen) updateClarkCountUI();
 }
 
 document.querySelectorAll('#admin-panel button').forEach(btn => {
@@ -1257,40 +1412,59 @@ window.addEventListener('keydown', (e) => {
   } else adminKeys.length = 0;
 });
 
+function adminSystemMsg(hostText, guestText) {
+  appendChat({ system: true, text: 'Admin: ' + hostText });
+  if (guestText) {
+    broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
+  }
+}
+
 function adminAction(action) {
   if (role !== 'host' || !myUser) return;
 
   switch (action) {
     case 'add-clark': {
-      clarkActive = true;
-      resetMonster();
-      appendChat({ system: true, text: 'Admin: Clark has been added.' });
-      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: 'Clark has been added.' });
+      if (clarks.length >= MAX_CLARKS) {
+        appendChat({ system: true, text: 'Admin: maximum of ' + MAX_CLARKS + ' Clarks reached.' });
+        return;
+      }
+      spawnClark();
+      adminSystemMsg('Clark added (' + clarks.length + ' total).', 'A Clark has been added.');
       break;
     }
     case 'remove-clark': {
-      clarkActive = false;
-      appendChat({ system: true, text: 'Admin: Clark has been removed.' });
-      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: 'Clark has been removed.' });
+      if (!clarks.length) {
+        appendChat({ system: true, text: 'Admin: no Clarks to remove.' });
+        return;
+      }
+      removeLastClark();
+      adminSystemMsg('Clark removed (' + clarks.length + ' remaining).', 'A Clark has been removed.');
+      break;
+    }
+    case 'clear-clarks': {
+      clearAllClarks();
+      adminSystemMsg('All Clarks cleared.', 'All Clarks have been cleared.');
       break;
     }
     case 'toggle-immunity': {
       clarkImmunity = !clarkImmunity;
-      const msg = 'Immunity is now ' + (clarkImmunity ? 'ON' : 'OFF') + '.';
-      appendChat({ system: true, text: 'Admin: ' + msg });
-      broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: msg });
+      const state = clarkImmunity ? 'ON' : 'OFF';
+      adminSystemMsg('Immunity is now ' + state + '.', 'Immunity is now ' + state + '.');
       break;
     }
     case 'teleport-clark': {
-      if (!clarkActive) clarkActive = true;
-      dPos.set(vPos.x + 3, 0, vPos.z + 3);
-      dVel.set(0, 0, 0);
-      appendChat({ system: true, text: 'Admin: Clark teleported next to you.' });
+      if (!clarks.length) spawnClark(vPos.x + 3, vPos.z + 3);
+      else clarks.forEach((c, i) => {
+        const ang = (i / clarks.length) * Math.PI * 2;
+        c.pos.set(vPos.x + Math.cos(ang) * 3, 0, vPos.z + Math.sin(ang) * 3);
+        c.vel.set(0, 0, 0);
+      });
+      adminSystemMsg('Clarks teleported next to you.', null);
       break;
     }
     case 'reset-clark': {
-      resetMonster();
-      appendChat({ system: true, text: 'Admin: Clark reset to a random location.' });
+      resetAllClarks();
+      adminSystemMsg('Clarks reset to random locations.', null);
       break;
     }
     case 'broadcast': {
@@ -1320,12 +1494,19 @@ function adminAction(action) {
     }
     case 'close': toggleAdminPanel(false); break;
   }
+
+  updateClarkCountUI();
 }
 
 /* ============================================================
    START GAME
    ============================================================ */
+let started = false;
+
 function startGame(nick, title) {
+  if (started) return;
+  started = true;
+
   myUser = { nick, title };
   joined = true;
 
@@ -1334,11 +1515,14 @@ function startGame(nick, title) {
 
   document.getElementById('hud-name').textContent = nick;
   document.getElementById('hud-title').textContent = title;
-  document.getElementById('chat-input').disabled = false;
+  const chatInput = document.getElementById('chat-input');
+  chatInput.disabled = false;
 
   const loginEl = document.getElementById('login');
   loginEl.classList.add('hidden');
-  setTimeout(() => loginEl.remove(), 600);
+  setTimeout(() => { if (loginEl.parentNode) loginEl.remove(); }, 600);
+
+  if (!clarks.length) spawnClark();
 
   initNet();
   loop();
@@ -1354,14 +1538,28 @@ function resumeAudio() {
   if (themeEl && themeEl.paused) themeEl.play().catch(() => {});
 }
 
+function isInteractiveElement(target) {
+  if (!target) return false;
+  let el = target;
+  while (el && el !== document.body) {
+    if (el.id === 'admin-panel' || el.id === 'chat-panel' || el.id === 'chat-input' ||
+        el.id === 'login' || el.tagName === 'INPUT' || el.tagName === 'BUTTON' ||
+        el.tagName === 'TEXTAREA') return true;
+    el = el.parentElement;
+  }
+  return false;
+}
+
 cv.addEventListener('mousedown', (e) => {
   if (!joined) return;
   if (e.button !== 0) return;
+  if (isInteractiveElement(e.target)) return;
   holding = true;
   lastX = e.clientX; lastY = e.clientY;
   resumeAudio();
 });
 window.addEventListener('mouseup', () => { holding = false; });
+window.addEventListener('blur', () => { holding = false; });
 
 window.addEventListener('mousemove', (e) => {
   if (!joined || !holding) return;
@@ -1375,6 +1573,7 @@ window.addEventListener('mousemove', (e) => {
 
 cv.addEventListener('wheel', (e) => {
   if (!joined) return;
+  if (isInteractiveElement(e.target)) return;
   e.preventDefault();
   const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
   tDist = C(tDist + d * 0.01, 1.5, 14);
@@ -1388,51 +1587,60 @@ function resize() {
 window.addEventListener('resize', resize);
 
 /* ============================================================
-   CLARK PHYSICS (host-only)
+   CLARK PHYSICS (host-only, per Clark)
    ============================================================ */
-function updateClarkPhysics(dt) {
-  const pdx = vPos.x - dPos.x;
-  const pdz = vPos.z - dPos.z;
+function updateClarkPhysics(c, dt) {
+  const pdx = vPos.x - c.pos.x;
+  const pdz = vPos.z - c.pos.z;
   const pd = Math.hypot(pdx, pdz) || 1;
 
-  dVel.x += (pdx / pd) * MON_ACCEL * dt;
-  dVel.z += (pdz / pd) * MON_ACCEL * dt;
+  c.vel.x += (pdx / pd) * MON_ACCEL * dt;
+  c.vel.z += (pdz / pd) * MON_ACCEL * dt;
 
   const fr = Math.exp(-MON_FRICTION * dt);
-  dVel.x *= fr; dVel.z *= fr;
+  c.vel.x *= fr; c.vel.z *= fr;
 
-  const mspd = Math.hypot(dVel.x, dVel.z);
+  const mspd = Math.hypot(c.vel.x, c.vel.z);
   if (mspd > MON_MAXSPD) {
     const kk = MON_MAXSPD / mspd;
-    dVel.x *= kk; dVel.z *= kk;
+    c.vel.x *= kk; c.vel.z *= kk;
   }
 
-  dPos.x += dVel.x * dt;
-  dPos.z += dVel.z * dt;
-  resolve(dPos, 0.6, dVel);
+  c.pos.x += c.vel.x * dt;
+  c.pos.z += c.vel.z * dt;
+  resolve(c.pos, 0.6, c.vel);
 
   if (mspd > 0.5) {
-    const ta = Math.atan2(dVel.x, dVel.z);
-    let dh = (ta - dHeading) % (Math.PI * 2);
+    const ta = Math.atan2(c.vel.x, c.vel.z);
+    let dh = (ta - c.heading) % (Math.PI * 2);
     if (dh > Math.PI) dh -= Math.PI * 2;
     if (dh < -Math.PI) dh += Math.PI * 2;
-    dHeading += dh * (1 - Math.exp(-MON_TURN * dt));
+    c.heading += dh * (1 - Math.exp(-MON_TURN * dt));
   }
+
+  c.spd = mspd;
 }
 
 function hostCheckClarkCatch() {
-  if (role !== 'host' || !clarkActive || clarkImmunity) return;
+  if (role !== 'host' || clarkImmunity) return;
+  if (!clarks.length) return;
   const caught = [];
 
-  if (Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z) < 1.1) {
+  const localCaught = clarks.some(c =>
+    Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1
+  );
+  if (localCaught) {
     vPos.set(0, 0, 0);
-    appendChat({ system: true, text: 'Clark caught you — back to spawn.' });
+    appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
     caught.push(myId);
   }
 
   allPlayers.forEach((p, id) => {
     if (id === myId) return;
-    if (Math.hypot(p.x - dPos.x, p.z - dPos.z) < 1.1) {
+    const hit = clarks.some(c =>
+      Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1
+    );
+    if (hit) {
       caught.push(id);
       const target = guests.find(g => g.peer === id);
       if (target && target.open) {
@@ -1441,14 +1649,67 @@ function hostCheckClarkCatch() {
     }
   });
 
-  if (caught.length > 0) resetMonster();
+  if (caught.length > 0) resetAllClarks();
+}
+
+/* ============================================================
+   CLARK VISUAL UPDATE (both host and guest)
+   ============================================================ */
+function updateClarkVisuals(dt, k) {
+  clarks.forEach(c => {
+    if (role === 'guest') {
+      const t = clarkTargets.get(c.id);
+      if (t) {
+        c.pos.x += (t.x - c.pos.x) * k;
+        c.pos.y += (t.y - c.pos.y) * k;
+        c.pos.z += (t.z - c.pos.z) * k;
+        let dr = t.rot - c.heading;
+        while (dr > Math.PI) dr -= Math.PI * 2;
+        while (dr < -Math.PI) dr += Math.PI * 2;
+        c.heading += dr * k;
+        c.spd = t.spd;
+      }
+    }
+
+    c.root.position.copy(c.pos);
+    c.root.rotation.y = c.heading;
+
+    const fwdX = Math.sin(c.heading), fwdZ = Math.cos(c.heading);
+    const lat = (c.vel.x * fwdZ - c.vel.z * fwdX);
+    const lean = C(-lat * 0.12, -0.7, 0.7);
+    c.root.rotation.z += (lean - c.root.rotation.z) * Math.min(1, dt * 6);
+    c.root.rotation.x = C(c.spd / MON_MAXSPD, 0, 1) * 0.12;
+
+    c.phase += dt * (c.spd * 2.4 + 4);
+    if (c.fallbackRig) {
+      const s = Math.sin(c.phase) * 1.1;
+      c.fallbackRig.legL.rotation.x = s;
+      c.fallbackRig.legR.rotation.x = -s;
+      c.fallbackRig.armL.rotation.x = -s * 0.8;
+      c.fallbackRig.armR.rotation.x = s * 0.8;
+    }
+    if (c.mixer) {
+      c.mixer.update(dt);
+      c.mixer.timeScale = 0.6 + Math.min(1, c.spd / MON_MAXSPD) * 2.2;
+    }
+  });
+}
+
+function nearestClarkDistance() {
+  if (!clarks.length) return Infinity;
+  let m = Infinity;
+  for (const c of clarks) {
+    const d = Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z);
+    if (d < m) m = d;
+  }
+  return m;
 }
 
 /* ============================================================
    LOOP
    ============================================================ */
 const clock = new _T.Clock();
-let vWalk = 0, dWalk = 0;
+let vWalk = 0;
 
 function step(dt) {
   nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
@@ -1477,57 +1738,35 @@ function step(dt) {
   }
   if (vMix) vMix.update(dt);
 
-  // Clark
+  /* Clark physics only on host */
   if (role === 'host') {
-    if (clarkActive) {
-      updateClarkPhysics(dt);
-      hostCheckClarkCatch();
-    }
-  } else if (role === 'guest') {
-    dPos.x += (clarkTarget.x - dPos.x) * k;
-    dPos.y += (clarkTarget.y - dPos.y) * k;
-    dPos.z += (clarkTarget.z - dPos.z) * k;
-    let dr = clarkTarget.rot - dHeading;
-    while (dr > Math.PI) dr -= Math.PI * 2;
-    while (dr < -Math.PI) dr += Math.PI * 2;
-    dHeading += dr * k;
+    for (const c of clarks) updateClarkPhysics(c, dt);
+    hostCheckClarkCatch();
   }
 
-  drifter.visible = clarkActive;
-  drifter.position.copy(dPos);
-  drifter.rotation.y = dHeading;
+  updateClarkVisuals(dt, k);
 
-  const mspd = role === 'host' ? Math.hypot(dVel.x, dVel.z) : clarkTarget.spd;
-  const fwdX = Math.sin(dHeading), fwdZ = Math.cos(dHeading);
-  const lat = (dVel.x * fwdZ - dVel.z * fwdX);
-  const lean = C(-lat * 0.12, -0.7, 0.7);
-  drifterVis.rotation.z += (lean - drifterVis.rotation.z) * Math.min(1, dt * 6);
-  drifterVis.rotation.x = C(mspd / MON_MAXSPD, 0, 1) * 0.12;
-
-  dWalk += dt * (mspd * 2.4 + 4);
-  if (dRig) {
-    const s = Math.sin(dWalk) * 1.1;
-    dRig.legL.rotation.x = s; dRig.legR.rotation.x = -s;
-    dRig.armL.rotation.x = -s * 0.8; dRig.armR.rotation.x = s * 0.8;
-  }
-  if (dMix) { dMix.update(dt); dMix.timeScale = 2.2; }
-
-  const dist = Math.hypot(vPos.x - dPos.x, vPos.z - dPos.z);
-  if (themeEl && clarkActive) {
-    if (dist < 38) {
-      if (themeEl.paused) themeEl.play().catch(() => {});
-      const t = C(1 - (dist - 1) / 37, 0, 1);
-      const targetVol = 0.05 + t * 0.95;
-      themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
-    } else {
+  /* audio */
+  const near = nearestClarkDistance();
+  if (themeEl) {
+    const wantAudible = clarks.length > 0;
+    if (wantAudible) {
+      if (near < 38) {
+        if (themeEl.paused) themeEl.play().catch(() => {});
+        const t = C(1 - (near - 1) / 37, 0, 1);
+        const targetVol = 0.05 + t * 0.95;
+        themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
+      } else {
+        themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
+        if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
+      }
+    } else if (!themeEl.paused) {
       themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
-      if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
+      if (themeEl.volume < 0.01) themeEl.pause();
     }
-  } else if (themeEl && !themeEl.paused) {
-    themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
-    if (themeEl.volume < 0.01) themeEl.pause();
   }
 
+  /* camera */
   const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
   const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
 
@@ -1541,8 +1780,8 @@ function step(dt) {
   const desired = target.clone().addScaledVector(dir, d);
   if (desired.y < 0.22) desired.y = 0.22;
 
-  const near = C((2.4 - oDist) / 1.6, 0, 1);
-  const ease = near * near * (3 - 2 * near);
+  const nearEase = C((2.4 - oDist) / 1.6, 0, 1);
+  const ease = nearEase * nearEase * (3 - 2 * nearEase);
 
   cam.position.lerpVectors(desired, head, ease);
 
@@ -1558,6 +1797,7 @@ function step(dt) {
   key.position.set(vPos.x + 4, 12, vPos.z + 4);
   key.target.position.copy(vPos);
 
+  /* network */
   if (joined && myUser) {
     netAccum += dt;
     if (netAccum >= 0.1) {
