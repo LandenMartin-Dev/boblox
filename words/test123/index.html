@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>boblox -- hussrooms</title>
+<title>Spatial Walk — Multiplayer</title>
 <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
 <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 <style>
@@ -421,7 +421,7 @@ function buildClarkFallbackRig() {
 vRig = buildVRig(); viewerVis.add(vRig.root);
 
 /* ============================================================
-   NAME LABELS (SVG crown, no emoji)
+   NAME LABELS
    ============================================================ */
 function makeLabel(nick, title, color, isHost) {
   const c = document.createElement('canvas');
@@ -581,7 +581,12 @@ function prep(obj, fbTex) {
     const ms = Array.isArray(o.material) ? o.material : [o.material];
     for (const m of ms) {
       if (!m) continue;
-      if (fbTex && 'map' in m && !m.map) { m.map = fbTex; m.needsUpdate = true; }
+      // Apply external texture if provided, even when a blank map exists
+      if (fbTex && 'map' in m) {
+        m.map = fbTex;
+        if (m.color) m.color.setHex(0xffffff);
+        m.needsUpdate = true;
+      }
       if ('roughness' in m) m.roughness = Math.min(1, m.roughness ?? .9);
     }
   });
@@ -606,7 +611,6 @@ function loadAudio(url, onProgress) {
 async function loadAllAssets() {
   setLoad(78, 'loading figure model…'); await yieldFrame();
   
-  // Enforce relative paths for GitHub pages by prefixing ./
   const playerPath = './assets/player.fbx';
   const [vM, vT] = await Promise.all([
     firstModel([playerPath, './assets/player.glb', './assets/player.gltf']),
@@ -615,7 +619,8 @@ async function loadAllAssets() {
   setLoad(84, 'applying figure…'); await yieldFrame();
   if (vM) {
     const m = fit(vM.object, playerModelHeight); prep(m, vT);
-    viewerVis.remove(vRig.root); viewerVis.add(m); vRig = null;
+    if (vRig) { viewerVis.remove(vRig.root); vRig = null; }
+    viewerVis.add(m);
     playerModelTemplate = m;
     playerModelAnimations = vM.animations || [];
     if (vM.animations.length) {
@@ -623,9 +628,10 @@ async function loadAllAssets() {
       const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
       if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
     }
+  } else if (vRig) {
+    if (!viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
   }
 
-  /* ---- ENTITY / CLARK ---- */
   setLoad(88, 'loading entity model…'); await yieldFrame();
   const [eM, eT] = await Promise.all([
     firstModel([
@@ -651,7 +657,7 @@ async function loadAllAssets() {
     }
     console.log("Entity model loaded successfully.");
   } else {
-    console.error("FAILED to load entity model. Check your assets/ folder or file extensions (case-sensitive on GitHub Pages).");
+    console.warn("Entity model not loaded — using fallback rig for Clarks.");
   }
 
   setLoad(96, 'loading theme…'); await yieldFrame();
@@ -665,18 +671,18 @@ async function loadAllAssets() {
    ============================================================ */
 const vPos = new _T.Vector3(0, 0, 0);
 
-let oYaw = 0, oPitch = 0.18, oDist = 8.5; // Start further back
+let oYaw = 0, oPitch = 0.18, oDist = 8.5;
 let tYaw = 0, tPitch = 0.18, tDist = 8.5;
 
 let holding = false;
 let isSprinting = false;
 
 const WALK_SPEED = 9.0;
-const SPRINT_SPEED = 16.0; // Faster than MON_MAXSPD
+const SPRINT_SPEED = 16.0;
 const vHeading = { y: Math.PI };
 
 const MON_ACCEL   = 55;
-const MON_MAXSPD  = 14.5; // Slightly slower than SPRINT_SPEED
+const MON_MAXSPD  = 14.5;
 const MON_FRICTION = 0.35;
 const MON_TURN     = 3.0;
 
@@ -1581,7 +1587,6 @@ cv.addEventListener('wheel', (e) => {
   tDist = C(tDist + d * 0.01, 1.5, 14);
 }, { passive: false });
 
-// Sprint Listener
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Shift') isSprinting = true;
 });
@@ -1700,7 +1705,6 @@ function updateClarkVisuals(dt, k) {
     }
     if (c.mixer) {
       c.mixer.update(dt);
-      c.mixer.timeScale = 0.6 + Math.min(1, c.spd / MON_MAXSPD) * 2.2;
     }
   });
 }
@@ -1750,7 +1754,6 @@ function step(dt) {
   }
   if (vMix) vMix.update(dt);
 
-  /* Clark physics only on host */
   if (role === 'host') {
     for (const c of clarks) updateClarkPhysics(c, dt);
     hostCheckClarkCatch();
@@ -1758,7 +1761,6 @@ function step(dt) {
 
   updateClarkVisuals(dt, k);
 
-  /* audio */
   const near = nearestClarkDistance();
   if (themeEl) {
     const wantAudible = clarks.length > 0;
@@ -1778,7 +1780,6 @@ function step(dt) {
     }
   }
 
-  /* camera */
   const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
   const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
 
@@ -1803,13 +1804,12 @@ function step(dt) {
   const q1 = new _T.Quaternion().setFromEuler(e1);
   cam.quaternion.copy(q3).slerp(q1, ease);
 
-  viewerVis.visible = ease < 0.5;
+  viewerVis.visible = true;
 
   focus.position.set(vPos.x, vPos.y + 1.9, vPos.z);
   key.position.set(vPos.x + 4, 12, vPos.z + 4);
   key.target.position.copy(vPos);
 
-  /* network */
   if (joined && myUser) {
     netAccum += dt;
     if (netAccum >= 0.1) {
