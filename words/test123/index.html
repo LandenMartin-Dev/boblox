@@ -3,116 +3,191 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spatial Visualizer</title>
-<meta name="description" content="A 3D spatial visualization environment." />
+<title>test123</title>
+<meta name="description" content="An interactive spatial walkthrough of an abstract interior layout." />
 <style>
   html, body {
     margin: 0;
     height: 100%;
-    overflow: hidden;
     background: #0d0a05;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+    color: #fff5d2;
   }
-  #app {
+  #stage {
     position: fixed;
     inset: 0;
+    cursor: pointer;
   }
-  canvas {
-    display: block;
+  canvas { display: block; width: 100%; height: 100%; }
+  #hint {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    color: rgba(255,245,210,0.55);
+    font-size: 12px;
+    letter-spacing: .04em;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ---------- Loading screen ---------- */
+  #loader {
+    position: fixed;
+    inset: 0;
+    background: #0d0a05;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.6s ease;
+  }
+  #loader.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #loader-title {
+    font-size: 22px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #d8c98a;
+    margin-bottom: 18px;
+    opacity: 0.85;
+  }
+  #bar-track {
+    width: min(420px, 70vw);
+    height: 10px;
+    background: #221c0e;
+    border: 1px solid #3a3320;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
+  }
+  #bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8a7430, #e0c86a);
+    box-shadow: 0 0 12px rgba(224,200,106,0.4);
+    transition: width 0.15s linear;
+  }
+  #loader-text {
+    margin-top: 14px;
+    font-size: 12px;
+    letter-spacing: .08em;
+    color: rgba(216,201,138,0.7);
+    min-height: 16px;
+    text-align: center;
   }
 </style>
 </head>
 <body>
-<div id="app"></div>
+
+<!-- Loading screen -->
+<div id="loader">
+  <div id="loader-title">Preparing Space</div>
+  <div id="bar-track"><div id="bar-fill"></div></div>
+  <div id="loader-text">booting…</div>
+</div>
+
+<div id="stage">
+  <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
+</div>
 
 <script type="module">
 /* ============================================================
-   ENGINE LOADING
+   LOADING SCREEN HELPERS
    ============================================================ */
-const TIMEOUT = 2600;
-const tryImp = (u) => Promise.race([
-  import(u),
-  new Promise((_, rej) => setTimeout(() => rej(new Error('t')), TIMEOUT)),
-]);
-async function tryAll(urls) {
-  for (const u of urls) {
-    try { return await tryImp(u); } catch (e) {}
+const loaderEl = document.getElementById('loader');
+const fillEl   = document.getElementById('bar-fill');
+const statusEl = document.getElementById('loader-text');
+
+let loadPct = 0;
+function setLoad(pct, label) {
+  loadPct = Math.max(loadPct, Math.min(100, pct));
+  fillEl.style.width = loadPct + '%';
+  if (label) statusEl.textContent = label;
+  if (loadPct >= 100) {
+    setTimeout(() => {
+      loaderEl.classList.add('hidden');
+      setTimeout(() => loaderEl.remove(), 700);
+    }, 220);
   }
+}
+const yieldFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+
+/* ============================================================
+   MODULE LOADING
+   ============================================================ */
+setLoad(3, 'loading three.js…');
+const TMO = 4000;
+const _ti = (u) => Promise.race([
+  import(u),
+  new Promise((_, r) => setTimeout(() => r(new Error('t')), TMO)),
+]);
+async function _ta(urls) {
+  for (const u of urls) { try { return await _ti(u); } catch (e) {} }
   return null;
 }
 
-const THREE_URLS = [
-  './three.module.js',
-  './lib/three.module.js',
-  'https://esm.sh/three@0.160.0/build/three.module.js',
+const _T = await _ta([
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
-];
+  'https://esm.sh/three@0.160.0/build/three.module.js',
+  'https://unpkg.com/three@0.160.0/build/three.module.js',
+]);
+if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load failed'); }
+setLoad(15, 'loading loaders…');
+await yieldFrame();
 
-const THREE = await tryAll(THREE_URLS);
-if (!THREE) throw new Error('engine load failed');
-
-/* ============================================================
-   ADDON LOADING
-   ============================================================ */
-const GLTF_URLS = [
-  'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+let _GL = null, _FL = null;
+try { const m = await _ta([
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-];
-const FBX_URLS = [
-  'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+]); if (m) _GL = m.GLTFLoader; } catch (e) {}
+setLoad(22, 'loading loaders…');
+await yieldFrame();
+try { const m = await _ta([
   'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
-];
-
-let GLTFLoader = null, FBXLoader = null;
-try { const m = await tryAll(GLTF_URLS); if (m) GLTFLoader = m.GLTFLoader; } catch (e) {}
-try { const m = await tryAll(FBX_URLS); if (m) FBXLoader = m.FBXLoader; } catch (e) {}
-
-/* ============================================================
-   CONSTANTS & SETUP
-   ============================================================ */
-const clamp = THREE.MathUtils.clamp;
-const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-app.appendChild(renderer.domElement);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xb9a44e);
-scene.fog = new THREE.Fog(0xb9a44e, 10, 50);
-
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 150);
+  'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+]); if (m) _FL = m.FBXLoader; } catch (e) {}
+setLoad(30, 'building scene…');
+await yieldFrame();
 
 /* ============================================================
-   ASSETS
+   SETUP
    ============================================================ */
-const ASSETS = {
-  player: {
-    models: ['assets/player.fbx', 'assets/player.glb', 'assets/player.gltf'],
-    textures: ['assets/texters/player/player', 'assets/texters/player/texture']
-  },
-  entity: {
-    models: ['assets/entaty.glb', 'assets/entaty.gltf', 'assets/entity.glb', 'assets/entity.gltf'],
-    textures: ['assets/texters/entity/entity', 'assets/texters/entity/texture']
-  }
-};
+const C = _T.MathUtils.clamp;
+const stage = document.getElementById('stage');
+const R = new _T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+R.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+R.shadowMap.enabled = true;
+R.shadowMap.type = _T.PCFSoftShadowMap;
+R.outputColorSpace = _T.SRGBColorSpace;
+R.toneMapping = _T.ACESFilmicToneMapping;
+stage.appendChild(R.domElement);
+
+const scene = new _T.Scene();
+scene.background = new _T.Color(0xb9a44e);
+scene.fog = new _T.Fog(0xb9a44e, 10, 50);
+
+const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
 
 /* ============================================================
-   TEXTURES
+   PROCEDURAL TEXTURES
    ============================================================ */
-function canvasTex(w, h, draw) {
+function tex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new _T.CanvasTexture(c);
+  t.colorSpace = _T.SRGBColorSpace;
+  t.wrapS = t.wrapT = _T.RepeatWrapping; t.anisotropy = 4;
   return t;
 }
 
-const wallpaperTex = canvasTex(512, 512, (ctx, w, h) => {
+setLoad(36, 'painting walls…');
+await yieldFrame();
+
+const wallTex = tex(512, 512, (ctx, w, h) => {
   ctx.fillStyle = '#c4b06a'; ctx.fillRect(0, 0, w, h);
   for (let x = 0; x < w; x += 32) {
     ctx.fillStyle = 'rgba(255,248,200,.05)'; ctx.fillRect(x, 0, 16, h);
@@ -134,7 +209,10 @@ const wallpaperTex = canvasTex(512, 512, (ctx, w, h) => {
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
 });
 
-const carpetTex = canvasTex(256, 256, (ctx, w, h) => {
+setLoad(44, 'painting floor…');
+await yieldFrame();
+
+const floorTex = tex(256, 256, (ctx, w, h) => {
   ctx.fillStyle = '#9a8738'; ctx.fillRect(0, 0, w, h);
   const img = ctx.getImageData(0, 0, w, h), d = img.data;
   for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 44; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
@@ -154,7 +232,10 @@ const carpetTex = canvasTex(256, 256, (ctx, w, h) => {
   }
 });
 
-const ceilingTex = canvasTex(256, 256, (ctx, w, h) => {
+setLoad(51, 'painting ceiling…');
+await yieldFrame();
+
+const ceilTex = tex(256, 256, (ctx, w, h) => {
   ctx.fillStyle = '#d3caa0'; ctx.fillRect(0, 0, w, h);
   const t = w / 2;
   for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
@@ -172,158 +253,147 @@ const ceilingTex = canvasTex(256, 256, (ctx, w, h) => {
   ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
 });
 
+setLoad(58, 'placing lights…');
+await yieldFrame();
+
 /* ============================================================
    LIGHTS
    ============================================================ */
-scene.add(new THREE.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
-const keyLight = new THREE.DirectionalLight(0xfff4cc, 1.35);
-keyLight.position.set(4, 12, 4); keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(1024, 1024); keyLight.shadow.bias = -0.0012;
-const sc = keyLight.shadow.camera;
+scene.add(new _T.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
+const key = new _T.DirectionalLight(0xfff4cc, 1.35);
+key.position.set(4, 12, 4); key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0012;
+const sc = key.shadow.camera;
 sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 50;
-scene.add(keyLight); scene.add(keyLight.target);
-const playerLight = new THREE.PointLight(0xffe8a8, 14, 15, 2);
-scene.add(playerLight);
+scene.add(key); scene.add(key.target);
+const focus = new _T.PointLight(0xffe8a8, 14, 15, 2);
+scene.add(focus);
+
+setLoad(64, 'raising walls…');
+await yieldFrame();
 
 /* ============================================================
-   MAP GENERATION
+   MAP
    ============================================================ */
-const WALL_H = 6.0;
-const WALL_T = 0.6;
-const MAP_SIZE = 120;
-const wallBoxes = [];
+const WH = 6.0, WT = 0.6, MS = 120;
+const boxes = [];
 
-function addWall(x, z, w, d) {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(w, WALL_H, d),
-    new THREE.MeshStandardMaterial({ map: wallpaperTex, roughness: .95 })
+function wall(x, z, w, d) {
+  const m = new _T.Mesh(
+    new _T.BoxGeometry(w, WH, d),
+    new _T.MeshStandardMaterial({ map: wallTex, roughness: .95 })
   );
-  mesh.position.set(x, WALL_H / 2, z);
-  mesh.castShadow = true; mesh.receiveShadow = true;
-  scene.add(mesh);
-  wallBoxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+  m.position.set(x, WH / 2, z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  boxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
 }
 
-// Boundary walls
-addWall(0, -MAP_SIZE/2, MAP_SIZE, WALL_T);
-addWall(0, MAP_SIZE/2, MAP_SIZE, WALL_T);
-addWall(-MAP_SIZE/2, 0, WALL_T, MAP_SIZE);
-addWall(MAP_SIZE/2, 0, WALL_T, MAP_SIZE);
+wall(0, -MS/2, MS, WT);
+wall(0, MS/2, MS, WT);
+wall(-MS/2, 0, WT, MS);
+wall(MS/2, 0, WT, MS);
 
-// Abstract geometric maze
-for (let x = -MAP_SIZE/2 + 10; x < MAP_SIZE/2 - 10; x += 20) {
-  for (let z = -MAP_SIZE/2 + 10; z < MAP_SIZE/2 - 10; z += 20) {
+for (let x = -MS/2 + 10; x < MS/2 - 10; x += 20) {
+  for (let z = -MS/2 + 10; z < MS/2 - 10; z += 20) {
     if (Math.hypot(x, z) < 10) continue;
     const r = Math.random();
     if (r < 0.3) {
-      addWall(x, z, 8, 1);
-      addWall(x - 3.5, z - 3.5, 1, 8);
+      wall(x, z, 8, 1); wall(x - 3.5, z - 3.5, 1, 8);
     } else if (r < 0.6) {
-      addWall(x, z, 10, 1.5);
-      addWall(x, z, 1.5, 10);
+      wall(x, z, 10, 1.5); wall(x, z, 1.5, 10);
     } else if (r < 0.8) {
-      addWall(x, z, 12, 1);
-      addWall(x + 6, z + 6, 1, 12);
+      wall(x, z, 12, 1); wall(x + 6, z + 6, 1, 12);
     } else {
-      addWall(x-2, z-2, 2, 2);
-      addWall(x+2, z-2, 2, 2);
-      addWall(x-2, z+2, 2, 2);
-      addWall(x+2, z+2, 2, 2);
+      wall(x-2, z-2, 2, 2); wall(x+2, z-2, 2, 2);
+      wall(x-2, z+2, 2, 2); wall(x+2, z+2, 2, 2);
     }
   }
 }
 
-// Floor & Ceiling
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(MAP_SIZE * 2, MAP_SIZE * 2),
-  new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 1 })
+const fl = new _T.Mesh(
+  new _T.PlaneGeometry(MS * 2, MS * 2),
+  new _T.MeshStandardMaterial({ map: floorTex, roughness: 1 })
 );
-floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+fl.rotation.x = -Math.PI / 2; fl.receiveShadow = true; scene.add(fl);
 
-const ceil = new THREE.Mesh(
-  new THREE.PlaneGeometry(MAP_SIZE * 2, MAP_SIZE * 2),
-  new THREE.MeshStandardMaterial({ map: ceilingTex, roughness: 1, side: THREE.DoubleSide })
+const ce = new _T.Mesh(
+  new _T.PlaneGeometry(MS * 2, MS * 2),
+  new _T.MeshStandardMaterial({ map: ceilTex, roughness: 1, side: _T.DoubleSide })
 );
-ceil.rotation.x = Math.PI / 2; ceil.position.y = WALL_H; ceil.receiveShadow = true; scene.add(ceil);
+ce.rotation.x = Math.PI / 2; ce.position.y = WH; ce.receiveShadow = true; scene.add(ce);
 
-// Ceiling lights
-const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c4 });
+const lm = new _T.MeshBasicMaterial({ color: 0xfff6c4 });
 for (let x = -40; x <= 40; x += 20) {
   for (let z = -40; z <= 40; z += 20) {
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), lightMat);
-    panel.rotation.x = Math.PI / 2;
-    panel.position.set(x, WALL_H - 0.02, z);
-    scene.add(panel);
+    const p = new _T.Mesh(new _T.PlaneGeometry(2.5, 2.5), lm);
+    p.rotation.x = Math.PI / 2; p.position.set(x, WH - 0.02, z); scene.add(p);
   }
 }
 
+setLoad(72, 'building figures…');
+await yieldFrame();
+
 /* ============================================================
-   CHARACTERS
+   FIGURES
    ============================================================ */
 const mkBox = (w, h, d, mat) => {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new _T.Mesh(new _T.BoxGeometry(w, h, d), mat);
   m.castShadow = true; m.receiveShadow = true; return m;
 };
 
-const player = new THREE.Group(); scene.add(player);
-const playerVisual = new THREE.Group(); player.add(playerVisual);
+const viewer = new _T.Group(); scene.add(viewer);
+const viewerVis = new _T.Group(); viewer.add(viewerVis);
+const drifter = new _T.Group(); scene.add(drifter);
+const drifterVis = new _T.Group(); drifter.add(drifterVis);
 
-const pursuer = new THREE.Group(); scene.add(pursuer);
-const pursuerVisual = new THREE.Group(); pursuer.add(pursuerVisual);
+let vRig = null, dRig = null;
+let vMix = null, dMix = null;
 
-let playerRig = null, pursuerRig = null;
-let playerMixer = null, entityMixer = null;
-
-// Build Fallbacks
-function buildPlayerFB() {
-  const root = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
-  const shirt = new THREE.MeshStandardMaterial({ color: 0x2f6fbf, roughness: .9 });
-  const pants = new THREE.MeshStandardMaterial({ color: 0x3f6f3f, roughness: .9 });
-  const torso = mkBox(.7, .7, .36, shirt); torso.position.y = 1.05; root.add(torso);
-  const head = mkBox(.42, .42, .42, skin); head.position.y = 1.62; root.add(head);
-  
-  const limb = (x, y, w, h, d, mat) => {
-    const p = new THREE.Group(); p.position.set(x, y, 0);
+function buildVRig() {
+  const root = new _T.Group();
+  const sk = new _T.MeshStandardMaterial({ color: 0xf2c14e, roughness: .85 });
+  const sh = new _T.MeshStandardMaterial({ color: 0x2f6fbf, roughness: .9 });
+  const pn = new _T.MeshStandardMaterial({ color: 0x3f6f3f, roughness: .9 });
+  const to = mkBox(.7, .7, .36, sh); to.position.y = 1.05; root.add(to);
+  const hd = mkBox(.42, .42, .42, sk); hd.position.y = 1.62; root.add(hd);
+  const lb = (x, y, w, h, d, mat) => {
+    const p = new _T.Group(); p.position.set(x, y, 0);
     const m = mkBox(w, h, d, mat); m.position.y = -h / 2; p.add(m); root.add(p); return p;
   };
-  const armL = limb(-.49, 1.4, .24, .66, .24, skin), armR = limb(.49, 1.4, .24, .66, .24, skin);
-  const legL = limb(-.17, .7, .27, .7, .3, pants), legR = limb(.17, .7, .27, .7, .3, pants);
-  return { root, armL, armR, legL, legR };
+  return { root,
+    armL: lb(-.49, 1.4, .24, .66, .24, sk), armR: lb(.49, 1.4, .24, .66, .24, sk),
+    legL: lb(-.17, .7, .27, .7, .3, pn), legR: lb(.17, .7, .27, .7, .3, pn) };
 }
 
-function buildPursuerFB() {
-  const root = new THREE.Group();
-  const suit = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
-  const eyeM = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
-  
-  const legLen = 1.0;
-  const legL = new THREE.Group(); legL.position.set(-.2, 1.0, 0); root.add(legL);
-  const legLM = mkBox(.25, legLen, .25, suit); legLM.position.y = -legLen/2; legL.add(legLM);
-  const legR = new THREE.Group(); legR.position.set(.2, 1.0, 0); root.add(legR);
-  const legRM = mkBox(.25, legLen, .25, suit); legRM.position.y = -legLen/2; legR.add(legRM);
-
-  const torso = mkBox(.65, .9, .35, suit); torso.position.y = 1.5; root.add(torso);
-  const head = mkBox(.4, .4, .4, skin); head.position.y = 2.15; root.add(head);
-  
-  const eL = new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 10), eyeM); eL.position.set(-.1, 2.2, .21); root.add(eL);
-  const eR = new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 10), eyeM); eR.position.set(.1, 2.2, .21); root.add(eR);
-
-  const armL = new THREE.Group(); armL.position.set(-.4, 1.8, 0); root.add(armL);
-  const armLM = mkBox(.15, .9, .15, suit); armLM.position.y = -.45; armL.add(armLM);
-  const armR = new THREE.Group(); armR.position.set(.4, 1.8, 0); root.add(armR);
-  const armRM = mkBox(.15, .9, .15, suit); armRM.position.y = -.45; armR.add(armRM);
-  return { root, armL, armR, legL, legR };
+function buildDRig() {
+  const root = new _T.Group();
+  const su = new _T.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .9 });
+  const sk = new _T.MeshStandardMaterial({ color: 0xd8d2bc, roughness: .9 });
+  const ey = new _T.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
+  const ll = 1.0;
+  const lL = new _T.Group(); lL.position.set(-.2, 1.0, 0); root.add(lL);
+  const lLM = mkBox(.25, ll, .25, su); lLM.position.y = -ll/2; lL.add(lLM);
+  const lR = new _T.Group(); lR.position.set(.2, 1.0, 0); root.add(lR);
+  const lRM = mkBox(.25, ll, .25, su); lRM.position.y = -ll/2; lR.add(lRM);
+  const to = mkBox(.65, .9, .35, su); to.position.y = 1.5; root.add(to);
+  const hd = mkBox(.4, .4, .4, sk); hd.position.y = 2.15; root.add(hd);
+  const eL = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eL.position.set(-.1, 2.2, .21); root.add(eL);
+  const eR = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eR.position.set(.1, 2.2, .21); root.add(eR);
+  const aL = new _T.Group(); aL.position.set(-.4, 1.8, 0); root.add(aL);
+  const aLM = mkBox(.15, .9, .15, su); aLM.position.y = -.45; aL.add(aLM);
+  const aR = new _T.Group(); aR.position.set(.4, 1.8, 0); root.add(aR);
+  const aRM = mkBox(.15, .9, .15, su); aRM.position.y = -.45; aR.add(aRM);
+  return { root, armL: aL, armR: aR, legL: lL, legR: lR };
 }
 
-playerRig = buildPlayerFB(); playerVisual.add(playerRig.root);
-pursuerRig = buildPursuerFB(); pursuerVisual.add(pursuerRig.root);
+vRig = buildVRig(); viewerVis.add(vRig.root);
+dRig = buildDRig(); drifterVis.add(dRig.root);
 
 /* ============================================================
-   MODEL LOADING
+   ASSET LOADING (real — progress bar tracks each file)
    ============================================================ */
-function expandPaths(ps) {
+function expand(ps) {
   const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
   for (const p of ps) {
     if (/\.(png|jpe?g|webp)$/i.test(p)) out.push(p);
@@ -332,29 +402,28 @@ function expandPaths(ps) {
   return out;
 }
 
-function loadFirstTex(paths) {
+function firstTex(ps) {
   return new Promise(res => {
-    const ld = new THREE.TextureLoader(), list = expandPaths(paths);
+    const ld = new _T.TextureLoader(), list = expand(ps);
     let i = 0;
     const next = () => {
       if (i >= list.length) return res(null);
-      const u = list[i++];
-      ld.load(u, t => {
-        t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-        t.wrapS = t.wrapT = THREE.RepeatWrapping; res(t);
+      ld.load(list[i++], t => {
+        t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
+        t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
       }, undefined, next);
     };
     next();
   });
 }
 
-async function loadFirstModel(paths) {
+async function firstModel(paths) {
   for (const url of paths) {
     const ext = url.split('.').pop().toLowerCase();
     try {
-      if (ext === 'fbx' && FBXLoader) return { object: await new FBXLoader().loadAsync(url), animations: [] };
-      if ((ext === 'glb' || ext === 'gltf') && GLTFLoader) {
-        const g = await new GLTFLoader().loadAsync(url);
+      if (ext === 'fbx' && _FL) return { object: await new _FL().loadAsync(url), animations: [] };
+      if ((ext === 'glb' || ext === 'gltf') && _GL) {
+        const g = await new _GL().loadAsync(url);
         return { object: g.scene, animations: g.animations || [] };
       }
     } catch (e) {}
@@ -362,134 +431,133 @@ async function loadFirstModel(paths) {
   return null;
 }
 
-function fitThin(obj, height, thin) {
+function fit(obj, height) {
   obj.updateMatrixWorld(true);
-  let b = new THREE.Box3().setFromObject(obj), s = new THREE.Vector3(); b.getSize(s);
-  
-  if (s.y > 1e-5) { 
-    obj.scale.multiplyScalar(height / s.y); 
-    obj.updateMatrixWorld(true); 
-    b = new THREE.Box3().setFromObject(obj); 
-  }
-  if (thin && thin !== 1) { 
-    obj.scale.x *= thin; 
-    obj.scale.z *= thin; 
-    obj.updateMatrixWorld(true); 
-    b = new THREE.Box3().setFromObject(obj); 
-  }
-  
-  const c = new THREE.Vector3(); 
-  b.getCenter(c);
-  
-  obj.position.x -= c.x; 
-  obj.position.z -= c.z; 
-  obj.position.y -= b.min.y;
-  
+  let b = new _T.Box3().setFromObject(obj), s = new _T.Vector3(); b.getSize(s);
+  if (s.y > 1e-5) { obj.scale.multiplyScalar(height / s.y); obj.updateMatrixWorld(true); b = new _T.Box3().setFromObject(obj); }
+  const c = new _T.Vector3(); b.getCenter(c);
+  obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b.min.y;
   return obj;
 }
 
-function prepMats(obj, fbTex) {
+function prep(obj, fbTex) {
   obj.traverse(o => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
     const ms = Array.isArray(o.material) ? o.material : [o.material];
     for (const m of ms) {
       if (!m) continue;
-      if (fbTex && 'map' in m && !m.map) { m.map = fbTex; if (m.color) m.color.setHex(0xffffff); m.needsUpdate = true; }
+      if (fbTex && 'map' in m && !m.map) { m.map = fbTex; m.needsUpdate = true; }
       if ('roughness' in m) m.roughness = Math.min(1, m.roughness ?? .9);
     }
   });
 }
 
-async function initModels() {
-  const [pModel, pTex] = await Promise.all([loadFirstModel(ASSETS.player.models), loadFirstTex(ASSETS.player.textures)]);
-  if (pModel) {
-    const m = fitThin(pModel.object, 1.85, 1); prepMats(m, pTex);
-    playerVisual.remove(playerRig.root); playerVisual.add(m);
-    playerRig = null;
-    if (pModel.animations.length) {
-      playerMixer = new THREE.AnimationMixer(m);
-      const ic = pModel.animations.find(c => /idle|stand|breath/i.test(c.name)) || pModel.animations[0];
-      if (ic) playerMixer.clipAction(ic).play();
+// ---- Audio loading (theme.mp3) ----
+let themeEl = null;
+function loadAudio(url, onProgress) {
+  return new Promise(res => {
+    const a = new Audio();
+    a.preload = 'auto';
+    a.loop = true;
+    a.volume = 0;
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; res(ok ? a : null); };
+    a.addEventListener('canplaythrough', () => finish(true), { once: true });
+    a.addEventListener('loadeddata', () => { if (onProgress) onProgress(); }, { once: true });
+    a.addEventListener('error', () => finish(false), { once: true });
+    a.src = url;
+    // fallback if browser doesn't fire canplaythrough in this context
+    setTimeout(() => { if (!done && a.readyState >= 2) finish(true); }, 3500);
+    setTimeout(() => { if (!done) finish(false); }, 6000);
+  });
+}
+
+async function loadAllAssets() {
+  // Player model + texture
+  setLoad(78, 'loading figure model…'); await yieldFrame();
+  const [vM, vT] = await Promise.all([
+    firstModel(['assets/player.fbx', 'assets/player.glb', 'assets/player.gltf']),
+    firstTex(['assets/texters/player/player', 'assets/texters/player/texture'])
+  ]);
+  setLoad(84, 'applying figure…'); await yieldFrame();
+  if (vM) {
+    const m = fit(vM.object, 1.85); prep(m, vT);
+    viewerVis.remove(vRig.root); viewerVis.add(m); vRig = null;
+    if (vM.animations.length) {
+      vMix = new _T.AnimationMixer(m);
+      const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
+      if (ic) vMix.clipAction(ic).play();
     }
   }
 
-  const [eModel, eTex] = await Promise.all([loadFirstModel(ASSETS.entity.models), loadFirstTex(ASSETS.entity.textures)]);
-  if (eModel) {
-    const m = fitThin(eModel.object, 2.2, 1); prepMats(m, eTex);
-    pursuerVisual.remove(pursuerRig.root); pursuerVisual.add(m);
-    pursuerRig = null;
-    
-    if (eModel.animations.length) {
-      entityMixer = new THREE.AnimationMixer(m);
-      const rc = eModel.animations.find(c => /run|walk|move|sprint/i.test(c.name)) || eModel.animations[0];
-      if (rc) entityMixer.clipAction(rc).play();
+  // Entity model + texture
+  setLoad(88, 'loading entity model…'); await yieldFrame();
+  const [dM, dT] = await Promise.all([
+    firstModel(['assets/entaty.glb', 'assets/entaty.gltf', 'assets/entity.glb', 'assets/entity.gltf']),
+    firstTex(['assets/texters/entity/entity', 'assets/texters/entity/texture'])
+  ]);
+  setLoad(93, 'applying entity…'); await yieldFrame();
+  if (dM) {
+    const m = fit(dM.object, 2.2); prep(m, dT);
+    drifterVis.remove(dRig.root); drifterVis.add(m); dRig = null;
+    if (dM.animations.length) {
+      dMix = new _T.AnimationMixer(m);
+      const rc = dM.animations.find(c => /run|walk|move/i.test(c.name)) || dM.animations[0];
+      if (rc) dMix.clipAction(rc).play();
     }
   }
+
+  // Theme audio
+  setLoad(96, 'loading theme…'); await yieldFrame();
+  themeEl = await loadAudio('assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
+  setLoad(99, 'finishing…'); await yieldFrame();
+
+  // If audio failed, don't block — still finish
+  setLoad(100, 'ready');
 }
 
 /* ============================================================
-   STATE & PHYSICS
+   STATE
    ============================================================ */
-const playerPos = new THREE.Vector3(0, 0, 0);
-const pursuerPos = new THREE.Vector3();
-const pursuerVel = new THREE.Vector3();
-let pursuerFacing = 0;
+const vPos = new _T.Vector3(0, 0, 0);
+const dPos = new _T.Vector3(30, 0, 30);
+const dVel = new _T.Vector3(0, 0, 0);
+let dHeading = 0;
 
-const keys = Object.create(null);
-let vy = 0, onGround = true, facing = Math.PI;
-let yaw = 0, pitch = 0, camDist = 4.5;
+let oYaw = 0, oPitch = 0.18, oDist = 6.5;
+let tYaw = 0, tPitch = 0.18, tDist = 6.5;
 
-// Sprint limits
-const WALK_SPD = 6.0, SPRINT_SPD = 8.5, GRAV = 24, JUMP = 6.2;
-const P_RAD = .4, PU_RAD = .6; 
-let curSpd = WALK_SPD, sprintBlend = 0;
+let holding = false;
+const WALK_SPEED = 9.0;
+const vHeading = { y: Math.PI };
 
-let stamina = 100;
-let isExhausted = false;
-const MAX_STAMINA = 100;
-const DRAIN_RATE = 30;
-const REGEN_RATE = 15;
+// --- Monster: fast, low friction => slides ---
+const MON_ACCEL   = 55;
+const MON_MAXSPD  = 15;
+const MON_FRICTION = 0.35;
+const MON_TURN     = 3.0;
 
-let nearWalls = [], nearT = 0;
-function refreshNearWalls() {
-  const R = 15; nearWalls.length = 0;
-  for (let i = 0; i < wallBoxes.length; i++) {
-    const w = wallBoxes[i];
-    if (playerPos.x > w.minX - R && playerPos.x < w.maxX + R &&
-        playerPos.z > w.minZ - R && playerPos.z < w.maxZ + R) nearWalls.push(w);
+let nWall = [], nTimer = 0;
+function refreshNear() {
+  const R2 = 15; nWall.length = 0;
+  for (const w of boxes) {
+    if (vPos.x > w.minX - R2 && vPos.x < w.maxX + R2 &&
+        vPos.z > w.minZ - R2 && vPos.z < w.maxZ + R2) nWall.push(w);
   }
 }
 
-function resetPursuer() {
-  let px, pz;
-  do {
-    px = (Math.random() - 0.5) * (MAP_SIZE - 20);
-    pz = (Math.random() - 0.5) * (MAP_SIZE - 20);
-  } while (Math.hypot(px - playerPos.x, pz - playerPos.z) < 30);
-
-  pursuerPos.set(px, 0, pz);
-  pursuerVel.set(0, 0, 0);
-  pursuerFacing = Math.random() * Math.PI * 2;
-  pursuer.position.copy(pursuerPos);
-}
-resetPursuer();
-
-function resolveColl(pos, rad, vel) {
+function resolve(pos, rad, vel) {
   for (let it = 0; it < 3; it++) {
     let hit = false;
-    for (let i = 0; i < wallBoxes.length; i++) {
-      const w = wallBoxes[i];
+    for (const w of boxes) {
       if (pos.x < w.minX - rad || pos.x > w.maxX + rad ||
           pos.z < w.minZ - rad || pos.z > w.maxZ + rad) continue;
-          
       const cx = pos.x < w.minX ? w.minX : (pos.x > w.maxX ? w.maxX : pos.x);
       const cz = pos.z < w.minZ ? w.minZ : (pos.z > w.maxZ ? w.maxZ : pos.z);
       const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
-      
       if (d2 >= rad * rad) continue;
       hit = true;
-      
       let nx = 0, nz = 0;
       if (d2 > 1e-9) {
         const d = Math.sqrt(d2), push = (rad - d) / d;
@@ -503,14 +571,13 @@ function resolveColl(pos, rad, vel) {
         else if (m === dt) { pos.z = w.minZ - rad; nz = -1; }
         else { pos.z = w.maxZ + rad; nz = 1; }
       }
-
       if (vel) {
         const dot = vel.x * nx + vel.z * nz;
         if (dot < 0) {
           vel.x -= dot * nx;
           vel.z -= dot * nz;
-          vel.x *= 0.99;
-          vel.z *= 0.99;
+          vel.x *= 0.98;
+          vel.z *= 0.98;
         }
       }
     }
@@ -518,25 +585,12 @@ function resolveColl(pos, rad, vel) {
   }
 }
 
-function moveWithCollision(pos, dx, dz, rad, vel = null) {
-  const dist = Math.hypot(dx, dz);
-  const steps = Math.max(1, Math.ceil(dist / 0.15)); 
-  const stepX = dx / steps;
-  const stepZ = dz / steps;
-  for (let i = 0; i < steps; i++) {
-    pos.x += stepX;
-    pos.z += stepZ;
-    resolveColl(pos, rad, vel);
-  }
-}
-
-function limitCam(target, dir, maxD) {
+function camLimit(target, dir, maxD) {
   const step = .2, pad = .2;
   for (let d = .5; d <= maxD; d += step) {
     const px = target.x + dir.x * d, py = target.y + dir.y * d, pz = target.z + dir.z * d;
-    if (py < .22 || py > WALL_H - .18) return Math.max(d - step, .4);
-    for (let i = 0; i < nearWalls.length; i++) {
-      const w = nearWalls[i];
+    if (py < .22 || py > WH - .18) return Math.max(d - step, .4);
+    for (const w of nWall) {
       if (px > w.minX - pad && px < w.maxX + pad && pz > w.minZ - pad && pz < w.maxZ + pad) {
         return Math.max(d - step, .4);
       }
@@ -545,218 +599,209 @@ function limitCam(target, dir, maxD) {
   return maxD;
 }
 
-/* ============================================================
-   INPUT & CAMERA
-   ============================================================ */
-const canvas = renderer.domElement;
-let dragging = false;
+function resetMonster() {
+  let px, pz;
+  do {
+    px = (Math.random() - 0.5) * (MS - 20);
+    pz = (Math.random() - 0.5) * (MS - 20);
+  } while (Math.hypot(px - vPos.x, pz - vPos.z) < 30);
+  dPos.set(px, 0, pz);
+  dVel.set(0, 0, 0);
+  dHeading = Math.random() * Math.PI * 2;
+}
+resetMonster();
 
-canvas.addEventListener('mousedown', (e) => {
-  if (e.button === 0) {
-    if (document.pointerLockElement !== canvas) {
-      canvas.requestPointerLock();
-      dragging = true;
-    }
+/* ============================================================
+   INPUT — hold click to advance, move mouse to aim
+   ============================================================ */
+const cv = R.domElement;
+let lastX = 0, lastY = 0;
+
+function resumeAudio() {
+  if (themeEl && themeEl.paused) {
+    themeEl.play().catch(() => {});
   }
+}
+
+cv.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  holding = true;
+  lastX = e.clientX; lastY = e.clientY;
+  resumeAudio();
 });
-window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mouseup', () => { holding = false; });
+
 window.addEventListener('mousemove', (e) => {
-  if (document.pointerLockElement === canvas) {
-    yaw -= e.movementX * 0.0024;
-    pitch -= e.movementY * 0.0022;
-  } else if (dragging) {
-    yaw -= e.movementX * 0.0035;
-    pitch -= e.movementY * 0.0035;
-  }
-  pitch = clamp(pitch, -1.4, 1.4);
+  if (!holding) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  tYaw   -= dx * 0.005;
+  tPitch -= dy * 0.004;
+  tPitch  = C(tPitch, -0.9, 1.2);
 });
-window.addEventListener('wheel', (e) => {
+cv.addEventListener('wheel', (e) => {
   e.preventDefault();
   const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-  camDist = clamp(camDist + d * 0.008, 0, 10);
+  tDist = C(tDist + d * 0.01, 1.5, 14);
 }, { passive: false });
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'Space') {
-    e.preventDefault();
-    if (onGround) { vy = JUMP; onGround = false; }
-  }
-  keys[e.code] = true;
-});
-window.addEventListener('keyup', (e) => keys[e.code] = false);
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+
+function resize() {
+  cam.aspect = innerWidth / innerHeight;
+  cam.updateProjectionMatrix();
+  R.setSize(innerWidth, innerHeight, false);
+}
+window.addEventListener('resize', resize);
 
 /* ============================================================
-   UPDATE LOOP
+   LOOP
    ============================================================ */
-const clock = new THREE.Clock();
-let pWalkPhase = 0;
-let runPhase = 0;
+const clock = new _T.Clock();
+let vWalk = 0, dWalk = 0;
 
-function update(dt) {
-  nearT -= dt; if (nearT <= 0) { nearT = .12; refreshNearWalls(); }
+function step(dt) {
+  nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
 
-  // Player Movement & Stamina
-  const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
-  const r = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-  const sy = Math.sin(yaw), cy = Math.cos(yaw);
-  const mx = -sy * f + cy * r, mz = -cy * f - sy * r;
-  const len = Math.hypot(mx, mz), moving = len > 1e-4;
-  const dx = moving ? mx / len : 0, dz = moving ? mz / len : 0;
+  const k = 1 - Math.exp(-10 * dt);
+  oYaw   += (tYaw   - oYaw)   * k;
+  oPitch += (tPitch - oPitch) * k;
+  oDist  += (tDist  - oDist)  * k;
 
-  const wantsSprint = moving && (keys.ShiftLeft || keys.ShiftRight);
-  
-  if (wantsSprint && stamina > 0 && !isExhausted) {
-    stamina -= DRAIN_RATE * dt;
-    if (stamina <= 0) {
-      stamina = 0;
-      isExhausted = true;
-    }
-  } else {
-    stamina += REGEN_RATE * dt;
-    if (stamina > MAX_STAMINA) stamina = MAX_STAMINA;
-    if (isExhausted && stamina > 30) {
-      isExhausted = false;
-    }
+  // --- viewer movement ---
+  const fx = -Math.sin(oYaw);
+  const fz = -Math.cos(oYaw);
+  if (holding) {
+    vPos.x += fx * WALK_SPEED * dt;
+    vPos.z += fz * WALK_SPEED * dt;
+    resolve(vPos, 0.4, null);
+    vWalk += dt * WALK_SPEED * 2.6;
+    vHeading.y = Math.atan2(fx, fz);
   }
 
-  const sprinting = wantsSprint && !isExhausted;
-  sprintBlend += (sprinting ? 1 : 0 - sprintBlend) * Math.min(1, dt * 9);
-  if (!sprinting) sprintBlend = Math.max(0, sprintBlend - dt * 6);
-  
-  const tgt = WALK_SPD + (SPRINT_SPD - WALK_SPD) * sprintBlend;
-  curSpd += (tgt - curSpd) * Math.min(1, dt * 11);
-
-  moveWithCollision(playerPos, dx * curSpd * dt, dz * curSpd * dt, P_RAD);
-
-  vy -= GRAV * dt; playerPos.y += vy * dt;
-  if (playerPos.y <= 0) { playerPos.y = 0; vy = 0; onGround = true; }
-
-  if (moving) {
-    const ta = Math.atan2(dx, dz);
-    let d = (ta - facing) % (Math.PI * 2);
-    if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
-    facing += d * (1 - Math.exp(-14 * dt));
-    pWalkPhase += dt * (7 + sprintBlend * 10);
+  viewer.position.copy(vPos);
+  viewer.rotation.y = vHeading.y;
+  if (vRig) {
+    const s = Math.sin(vWalk) * 0.9;
+    vRig.armL.rotation.x = s; vRig.armR.rotation.x = -s;
+    vRig.legL.rotation.x = -s; vRig.legR.rotation.x = s;
   }
-  player.rotation.y = facing; player.position.copy(playerPos);
+  if (vMix) vMix.update(dt);
 
-  if (playerRig) {
-    const swAmp = .72 + sprintBlend * .35;
-    const sw = Math.sin(pWalkPhase) * swAmp;
-    playerRig.armL.rotation.x = sw; playerRig.armR.rotation.x = -sw;
-    playerRig.legL.rotation.x = -sw; playerRig.legR.rotation.x = sw;
-  }
-  if (playerMixer) playerMixer.update(dt);
-
-  // Entity (Extreme sliding/ice physics)
-  const pdx = playerPos.x - pursuerPos.x;
-  const pdz = playerPos.z - pursuerPos.z;
+  // --- monster ---
+  const pdx = vPos.x - dPos.x;
+  const pdz = vPos.z - dPos.z;
   const pd = Math.hypot(pdx, pdz) || 1;
-  
-  const pAccel = 45; 
-  pursuerVel.x += (pdx / pd) * pAccel * dt;
-  pursuerVel.z += (pdz / pd) * pAccel * dt;
 
-  // VERY low friction for extreme sliding
-  const friction = Math.exp(-0.05 * dt); 
-  pursuerVel.x *= friction;
-  pursuerVel.z *= friction;
+  dVel.x += (pdx / pd) * MON_ACCEL * dt;
+  dVel.z += (pdz / pd) * MON_ACCEL * dt;
 
-  const maxSpd = 13; 
-  const spd = pursuerVel.length();
-  if (spd > maxSpd) { 
-    const k = maxSpd / spd; 
-    pursuerVel.x *= k; 
-    pursuerVel.z *= k; 
+  const fr = Math.exp(-MON_FRICTION * dt);
+  dVel.x *= fr;
+  dVel.z *= fr;
+
+  const mspd = dVel.length();
+  if (mspd > MON_MAXSPD) {
+    const kk = MON_MAXSPD / mspd;
+    dVel.x *= kk; dVel.z *= kk;
   }
 
-  moveWithCollision(pursuerPos, pursuerVel.x * dt, pursuerVel.z * dt, PU_RAD, pursuerVel);
+  dPos.x += dVel.x * dt;
+  dPos.z += dVel.z * dt;
+  resolve(dPos, 0.6, dVel);
 
-  if (spd > 0.5) {
-    const ta = Math.atan2(pursuerVel.x, pursuerVel.z);
-    let d = (ta - pursuerFacing) % (Math.PI * 2);
-    if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
-    pursuerFacing += d * (1 - Math.exp(-3.5 * dt)); // Slower turn rate = more drift
-  }
-  pursuer.rotation.y = pursuerFacing; pursuer.position.copy(pursuerPos);
-
-  // Visual drifting
-  const fwdX = Math.sin(pursuerFacing), fwdZ = Math.cos(pursuerFacing);
-  const lat = pursuerVel.x * fwdZ - pursuerVel.z * fwdX;
-  const slideAmt = clamp(-lat * 0.15, -0.9, 0.9);
-  
-  pursuerVisual.rotation.z += (slideAmt - pursuerVisual.rotation.z) * Math.min(1, dt * 6);
-  pursuerVisual.rotation.x = clamp(spd / maxSpd, 0, 1) * 0.15;
-
-  // Animation Updates
-  if (entityMixer) {
-    entityMixer.update(dt);
-    entityMixer.timeScale = Math.max(2.5, spd * 0.6); 
-  } else if (pursuerRig) {
-    runPhase += dt * (spd * 3.0 + 10); 
-    const bob = Math.abs(Math.sin(runPhase * 2)) * 0.35; 
-    pursuerVisual.position.y = bob;
-
-    const sw = Math.sin(runPhase) * 1.3; 
-    pursuerRig.legL.rotation.x = sw; pursuerRig.legR.rotation.x = -sw;
-    pursuerRig.armL.rotation.x = -sw * 1.1; pursuerRig.armR.rotation.x = sw * 1.1;
+  if (mspd > 0.5) {
+    const ta = Math.atan2(dVel.x, dVel.z);
+    let dh = (ta - dHeading) % (Math.PI * 2);
+    if (dh > Math.PI) dh -= Math.PI * 2;
+    if (dh < -Math.PI) dh += Math.PI * 2;
+    dHeading += dh * (1 - Math.exp(-MON_TURN * dt));
   }
 
-  // Catch check
-  const distToPlayer = Math.hypot(playerPos.x - pursuerPos.x, playerPos.z - pursuerPos.z);
-  if (distToPlayer < 1.0) {
-    playerPos.set(0, 0, 0);
-    resetPursuer();
-    stamina = 100; 
-    isExhausted = false;
+  drifter.position.copy(dPos);
+  drifter.rotation.y = dHeading;
+
+  const fwdX = Math.sin(dHeading), fwdZ = Math.cos(dHeading);
+  const lat = dVel.x * fwdZ - dVel.z * fwdX;
+  const lean = C(-lat * 0.12, -0.7, 0.7);
+  drifterVis.rotation.z += (lean - drifterVis.rotation.z) * Math.min(1, dt * 6);
+  drifterVis.rotation.x = C(mspd / MON_MAXSPD, 0, 1) * 0.12;
+
+  dWalk += dt * (mspd * 2.4 + 4);
+  if (dRig) {
+    const s = Math.sin(dWalk) * 1.1;
+    dRig.legL.rotation.x = s; dRig.legR.rotation.x = -s;
+    dRig.armL.rotation.x = -s * 0.8; dRig.armR.rotation.x = s * 0.8;
+  }
+  if (dMix) { dMix.update(dt); dMix.timeScale = 2.2; }
+
+  // --- theme audio: play when chasing, louder when closer ---
+  const dist = Math.hypot(pdx, pdz);
+  if (themeEl) {
+    // "chasing" = within a generous range and monster actually closing in
+    const chasing = dist < 38;
+    if (chasing) {
+      if (themeEl.paused) themeEl.play().catch(() => {});
+      // closer -> louder. dist 38 -> ~0.05, dist 1 -> ~1.0
+      const t = C(1 - (dist - 1) / 37, 0, 1);
+      const targetVol = 0.05 + t * 0.95;
+      themeEl.volume += (targetVol - themeEl.volume) * Math.min(1, dt * 6);
+    } else {
+      // fade out when not chasing
+      themeEl.volume += (0 - themeEl.volume) * Math.min(1, dt * 3);
+      if (themeEl.volume < 0.01 && !themeEl.paused) themeEl.pause();
+    }
   }
 
-  // Camera
-  const head = new THREE.Vector3(playerPos.x, playerPos.y + 1.66, playerPos.z);
-  const target = new THREE.Vector3(playerPos.x, playerPos.y + 1.25, playerPos.z);
-  
-  const t = clamp((2.4 - camDist) / 1.6, 0, 1);
-  const ease = t * t * (3 - 2 * t);
-  
-  const orbDir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize();
-  
-  let od = Math.max(camDist, 0.6);
-  od = limitCam(target, orbDir, od);
-  const desiredPos = target.clone().addScaledVector(orbDir, od);
-  
-  if (desiredPos.y < 0.22) desiredPos.y = 0.22;
-  
-  camera.position.lerpVectors(desiredPos, head, ease);
-  
-  const m3 = new THREE.Matrix4().lookAt(camera.position, target, new THREE.Vector3(0, 1, 0));
-  const q3 = new THREE.Quaternion().setFromRotationMatrix(m3);
-  
-  const e1 = new THREE.Euler(pitch, yaw, 0, 'YXZ');
-  const q1 = new THREE.Quaternion().setFromEuler(e1);
-  
-  camera.quaternion.copy(q3).slerp(q1, ease);
-  
-  playerVisual.visible = ease < 0.5;
+  // catch reset
+  if (dist < 1.1) {
+    vPos.set(0, 0, 0);
+    resetMonster();
+  }
 
-  playerLight.position.set(playerPos.x, playerPos.y + 1.9, playerPos.z);
-  keyLight.position.set(playerPos.x + 4, 12, playerPos.z + 4);
-  keyLight.target.position.copy(playerPos);
+  // --- camera orbit ---
+  const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
+  const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
+
+  const dir = new _T.Vector3(
+    Math.sin(oYaw) * Math.cos(oPitch),
+    -Math.sin(oPitch),
+    Math.cos(oYaw) * Math.cos(oPitch)
+  ).normalize();
+
+  const d = camLimit(target, dir, oDist);
+  const desired = target.clone().addScaledVector(dir, d);
+  if (desired.y < 0.22) desired.y = 0.22;
+
+  const near = C((2.4 - oDist) / 1.6, 0, 1);
+  const ease = near * near * (3 - 2 * near);
+
+  cam.position.lerpVectors(desired, head, ease);
+
+  const m3 = new _T.Matrix4().lookAt(cam.position, target, new _T.Vector3(0, 1, 0));
+  const q3 = new _T.Quaternion().setFromRotationMatrix(m3);
+  const e1 = new _T.Euler(oPitch, oYaw, 0, 'YXZ');
+  const q1 = new _T.Quaternion().setFromEuler(e1);
+  cam.quaternion.copy(q3).slerp(q1, ease);
+
+  viewerVis.visible = ease < 0.5;
+
+  focus.position.set(vPos.x, vPos.y + 1.9, vPos.z);
+  key.position.set(vPos.x + 4, 12, vPos.z + 4);
+  key.target.position.copy(vPos);
 }
 
-function animate() {
-  requestAnimationFrame(animate);
+function loop() {
+  requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
-  update(dt);
-  renderer.render(scene, camera);
+  step(dt);
+  R.render(scene, cam);
 }
 
-// Boot: start the loop immediately, swap in models when they finish loading.
-animate();
-initModels().catch(() => {});
+resize();
+loop();
+
+// Kick off asset loading; the bar tracks real files now.
+loadAllAssets().catch(() => setLoad(100, 'ready'));
 </script>
 </body>
 </html>
