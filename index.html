@@ -72,7 +72,7 @@
   .brand.small h1 { font-size: 22px; letter-spacing: -.6px; }
   .brand.small .logo-mark { width: 28px; height: 28px; }
 
-  /* ============ AUTH SCREEN ============ */
+  /* ============ NAME SCREEN ============ */
   .auth-wrap {
     position: relative; z-index: 1;
     min-height: 100vh;
@@ -99,39 +99,12 @@
   }
   @keyframes slide { to { background-position: 200% 0; } }
 
-  .tabs {
-    display: flex; gap: 6px;
-    background: #101112;
-    padding: 5px;
-    border-radius: 11px;
-    margin-bottom: 16px;
-  }
-  .tab {
-    flex: 1;
-    padding: 10px 8px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--muted);
-    font: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background .18s, color .18s;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active {
-    background: linear-gradient(180deg, #d99552, #b9661f);
-    color: #201205;
-    box-shadow: 0 4px 14px rgba(201,117,46,.28);
-  }
-
   /* ============ SAFETY WARNING ============ */
   .safety-note {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin: 0 0 6px;
+    margin: 16px 0 6px;
     padding: 10px 12px;
     border-radius: 9px;
     border: 1px solid rgba(201,117,46,.4);
@@ -412,9 +385,9 @@
 <div class="bg-blocks" id="bgBlocks" aria-hidden="true"></div>
 
 <!-- ============================================================
-     AUTH SCREEN
+     NAME SCREEN (shown only when no username is saved)
      ============================================================ -->
-<section class="auth-wrap" id="authScreen">
+<section class="auth-wrap" id="nameScreen">
   <div class="auth-card">
     <div class="brand">
       <svg class="logo-mark" viewBox="0 0 100 100" aria-hidden="true">
@@ -425,44 +398,17 @@
       <h1>Boblox</h1>
     </div>
 
-    <div class="tabs" role="tablist" aria-label="Account access">
-      <button class="tab active" id="tabLogin" data-tab="login" type="button" role="tab"
-              aria-selected="true" aria-controls="loginForm">Log In</button>
-      <button class="tab" id="tabRegister" data-tab="register" type="button" role="tab"
-              aria-selected="false" aria-controls="registerForm" tabindex="-1">Sign Up</button>
-    </div>
-
-    <!-- SAFETY WARNING -->
     <p class="safety-note" role="note">
       <span class="safety-icon" aria-hidden="true">⚠️</span>
-      <span>Do <strong>not</strong> use your real name or a real password here.</span>
+      <span>Pick any name you like — just <strong>don't</strong> use your real one.</span>
     </p>
 
-    <!-- LOGIN -->
-    <form id="loginForm" autocomplete="on" novalidate>
-      <label for="loginUser">Username</label>
-      <input id="loginUser" type="text" placeholder="e.g. BlockyBuilder"
-             autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" />
+    <form id="nameForm" novalidate>
+      <label for="nameInput">Username</label>
+      <input id="nameInput" type="text" placeholder="e.g. BlockyBuilder"
+             maxlength="20" autocapitalize="none" spellcheck="false" autocomplete="off" />
 
-      <label for="loginPass">Password</label>
-      <input id="loginPass" type="password" placeholder="Your password" autocomplete="current-password" />
-
-      <button class="btn-primary" type="submit">Log In</button>
-    </form>
-
-    <!-- REGISTER -->
-    <form id="registerForm" autocomplete="on" novalidate hidden>
-      <label for="regUser">Username</label>
-      <input id="regUser" type="text" placeholder="3-20 letters, numbers, _"
-             autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" />
-
-      <label for="regPass">Password</label>
-      <input id="regPass" type="password" placeholder="At least 4 characters" autocomplete="new-password" />
-
-      <label for="regPass2">Confirm Password</label>
-      <input id="regPass2" type="password" placeholder="Repeat your password" autocomplete="new-password" />
-
-      <button class="btn-primary" type="submit">Create Account</button>
+      <button class="btn-primary" type="submit">Continue</button>
     </form>
 
     <div class="msg" id="authMsg" role="status" aria-live="polite"></div>
@@ -486,7 +432,7 @@
     <div class="user-chip">
       <div class="avatar" id="navAvatar">E</div>
       <span id="navUser">Explorer</span>
-      <button class="btn-ghost" id="logoutBtn" type="button">Log Out</button>
+      <button class="btn-ghost" id="changeNameBtn" type="button">Change Name</button>
     </div>
   </header>
 
@@ -512,11 +458,11 @@
   /* ============================================================
      CONSTANTS
      ============================================================ */
-  const USERS_KEY      = 'boblox.users';
-  const SESSION_KEY    = 'boblox.session';
+  const NAME_KEY       = 'boblox.username';
   const WELCOME_PREFIX = 'boblox.welcome.';
   const WORDS_DIR      = 'words';
   const FETCH_TIMEOUT  = 10000; // ms
+  const NAME_RE        = /^[A-Za-z0-9_]{3,20}$/;
 
   const $ = (id) => document.getElementById(id);
 
@@ -538,53 +484,19 @@
     }
   };
 
-  // Always returns a plain object, never a string/array/primitive.
-  function getUsers() {
-    let raw;
-    try { raw = JSON.parse(store.get(USERS_KEY)); }
-    catch (err) { raw = null; }
-
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-
-    const users = {};
-    Object.keys(raw).forEach((key) => {
-      const rec = raw[key];
-      if (rec && typeof rec === 'object' && typeof rec.password === 'string') {
-        users[key] = rec;
-      }
-    });
-    return users;
-  }
-
-  function saveUsers(users) {
-    return store.set(USERS_KEY, JSON.stringify(users));
-  }
-
-  // Demo-only FNV-1a hash. No per-user salt, not real security.
-  function hashPassword(pw) {
-    const str = 'boblox::' + pw;
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(16);
-  }
-
   /* ============================================================
      ELEMENTS
      ============================================================ */
-  const authScreen = $('authScreen');
+  const nameScreen = $('nameScreen');
   const homeScreen = $('homeScreen');
   const authMsg    = $('authMsg');
-  const loginForm  = $('loginForm');
-  const regForm    = $('registerForm');
-  const tabs       = [...document.querySelectorAll('.tab')];
+  const nameForm   = $('nameForm');
+  const nameInput  = $('nameInput');
   const heroPanel  = $('heroPanel');
   const worldsEl   = $('worlds');
 
   /* ============================================================
-     AUTH MESSAGES
+     NAME MESSAGES
      ============================================================ */
   function setMsg(text, type) {
     authMsg.textContent = text || '';
@@ -601,135 +513,50 @@
     $('navUser').textContent   = name;
     $('navAvatar').textContent = name.charAt(0).toUpperCase();
 
-    // Welcome banner stays hidden for this account once dismissed.
+    // Welcome banner stays hidden for this name once dismissed.
     heroPanel.hidden = store.get(WELCOME_PREFIX + key) === '1';
 
-    authScreen.hidden = true;
+    nameScreen.hidden = true;
     homeScreen.hidden = false;
     window.scrollTo(0, 0);
   }
 
-  function showAuth() {
+  function showNameScreen() {
     homeScreen.hidden = true;
-    authScreen.hidden = false;
+    nameScreen.hidden = false;
 
-    loginForm.reset();
-    regForm.reset();
-
-    setActiveTab('login');
+    nameForm.reset();
+    const saved = store.get(NAME_KEY);
+    nameInput.value = saved || '';
     setMsg('');
   }
 
   /* ============================================================
-     TAB SWITCHING (with aria + roving tabindex + arrow keys)
+     NAME FORM
      ============================================================ */
-  function setActiveTab(name) {
-    tabs.forEach((tab) => {
-      const active = tab.dataset.tab === name;
-      tab.classList.toggle('active', active);
-      tab.setAttribute('aria-selected', active ? 'true' : 'false');
-      tab.tabIndex = active ? 0 : -1;
-    });
-    loginForm.hidden = name !== 'login';
-    regForm.hidden   = name !== 'register';
-  }
-
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => {
-      setActiveTab(tab.dataset.tab === 'register' ? 'register' : 'login');
-      setMsg('');
-    });
-
-    tab.addEventListener('keydown', (e) => {
-      const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-      if (!delta) return;
-      e.preventDefault();
-      const next = tabs[(index + delta + tabs.length) % tabs.length];
-      next.focus();
-      next.click();
-    });
-  });
-
-  /* ============================================================
-     REGISTER
-     ============================================================ */
-  regForm.addEventListener('submit', (e) => {
+  nameForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const username = $('regUser').value.trim();
-    const pass     = $('regPass').value;
-    const pass2    = $('regPass2').value;
+    const username = nameInput.value.trim();
 
-    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+    if (!NAME_RE.test(username)) {
       return setMsg('Username must be 3-20 characters (letters, numbers, underscores).', 'error');
     }
-    if (pass.length < 4) {
-      return setMsg('Password must be at least 4 characters.', 'error');
-    }
-    if (pass !== pass2) {
-      return setMsg('Passwords do not match.', 'error');
+    if (!store.set(NAME_KEY, username)) {
+      return setMsg('Could not save your username: browser storage is blocked or full.', 'error');
     }
 
-    const users = getUsers();
-    const key   = username.toLowerCase();
-
-    if (users[key]) {
-      return setMsg('That username is already taken.', 'error');
-    }
-
-    users[key] = {
-      username: username,
-      password: hashPassword(pass),
-      created: Date.now()
-    };
-
-    if (!saveUsers(users)) {
-      return setMsg('Could not save the account: browser storage is blocked or full.', 'error');
-    }
-
-    store.set(SESSION_KEY, key);
-    regForm.reset();
     setMsg('');
     enterHome(username);
   });
 
   /* ============================================================
-     LOGIN
+     CHANGE NAME
      ============================================================ */
-  loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    const username = $('loginUser').value.trim();
-    const pass     = $('loginPass').value;
-
-    if (!username || !pass) {
-      return setMsg('Enter your username and password.', 'error');
-    }
-
-    const users  = getUsers();
-    const key    = username.toLowerCase();
-    const record = users[key];
-
-    if (!record) {
-      return setMsg('No Boblox account found with that username.', 'error');
-    }
-    if (record.password !== hashPassword(pass)) {
-      return setMsg('Incorrect password. Try again.', 'error');
-    }
-
-    store.set(SESSION_KEY, key);
-    loginForm.reset();
-    setMsg('');
-    enterHome(record.username || username);
-  });
-
-  /* ============================================================
-     LOG OUT
-     ============================================================ */
-  $('logoutBtn').addEventListener('click', () => {
-    store.remove(SESSION_KEY);
-    showAuth();
-    setMsg('You have been logged out.', 'ok');
+  $('changeNameBtn').addEventListener('click', () => {
+    store.remove(NAME_KEY);
+    showNameScreen();
+    nameInput.focus();
   });
 
   /* ============================================================
@@ -737,8 +564,8 @@
      ============================================================ */
   $('okBtn').addEventListener('click', () => {
     heroPanel.hidden = true;
-    const session = store.get(SESSION_KEY);
-    if (session) store.set(WELCOME_PREFIX + session, '1');
+    const name = store.get(NAME_KEY);
+    if (name) store.set(WELCOME_PREFIX + name.toLowerCase(), '1');
   });
 
   /* ============================================================
@@ -1014,17 +841,12 @@
      BOOT
      ============================================================ */
   (function boot() {
-    setActiveTab('login');
+    const saved = (store.get(NAME_KEY) || '').trim();
 
-    const users   = getUsers();
-    const session = store.get(SESSION_KEY);
-    const record  = session ? users[session] : null;
-
-    if (record) {
-      enterHome(record.username || session);
+    if (saved) {
+      enterHome(saved);
     } else {
-      if (session) store.remove(SESSION_KEY);
-      showAuth();
+      showNameScreen();
     }
 
     loadWorlds();
