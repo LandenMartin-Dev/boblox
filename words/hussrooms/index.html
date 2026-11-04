@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>boblox | clarkrooms</title>
-  <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
+  <title>boblox | hussrooms</title>
+  <meta name="description" content="Multiplayer walkthrough in the hussrooms." />
   <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
   <style>
     /* ----- reset & base ----- */
@@ -38,16 +38,6 @@
       font-size: 11px; color: rgba(255,245,210,.5);
       margin-top: 6px; letter-spacing: .08em;
     }
-
-    /* ----- debug overlay ----- */
-    #debug-overlay {
-      display: none; position: fixed; top: 14px; right: 14px; 
-      background: rgba(13,10,5,0.85); color: #0f0; font-family: monospace; 
-      padding: 12px; font-size: 12px; z-index: 9999; pointer-events: none; 
-      text-align: left; border: 1px solid #0f0; border-radius: 6px; line-height: 1.6;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-    #debug-overlay .title { font-weight: bold; border-bottom: 1px solid #0f0; padding-bottom: 4px; margin-bottom: 6px; }
 
     /* ----- chat ----- */
     #chat-panel {
@@ -145,6 +135,7 @@
     #loader-text {
       margin-top: 14px; font-size: 12px; letter-spacing: .08em;
       color: rgba(216,201,138,0.7); min-height: 16px; text-align: center;
+      max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
     /* ----- login ----- */
@@ -228,16 +219,6 @@
     <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
   </div>
 
-  <!-- DEBUG OVERLAY (D+E+V) -->
-  <div id="debug-overlay">
-    <div class="title">DEBUG MODE (D+E+V)</div>
-    <div>Player Model: <span id="dbg-pm" style="color:#f00;">...</span></div>
-    <div>Entity Model: <span id="dbg-em" style="color:#f00;">...</span></div>
-    <div>Player Tex: <span id="dbg-pt" style="color:#f00;">...</span></div>
-    <div>FPS: <span id="dbg-fps" style="color:#0f0;">0</span></div>
-    <div>Clarks: <span id="dbg-clarks" style="color:#0f0;">0</span></div>
-  </div>
-
   <!-- CHAT -->
   <div id="chat-panel">
     <div id="chat-messages"></div>
@@ -250,7 +231,7 @@
       <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/></svg>
       Admin Panel · Host Only
     </div>
-    <div class="clark-count" id="clark-count">Clarks: 0 / 12</div>
+    <div class="clark-count" id="clark-count">Clarks: 0 / 25</div>
     <button data-act="add-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add Clark</button>
     <button data-act="remove-clark"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>Remove Clark</button>
     <button data-act="clear-clarks"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>Clear All Clarks</button>
@@ -274,7 +255,10 @@
     function setLoad(pct, label) {
       loadPct = Math.max(loadPct, Math.min(100, pct));
       fillEl.style.width = loadPct + '%';
-      if (label) statusEl.textContent = label;
+      if (label) {
+        statusEl.textContent = label;
+        statusEl.title = label;
+      }
       if (loadPct >= 100) {
         setTimeout(() => {
           loaderEl.classList.add('hidden');
@@ -287,7 +271,7 @@
     /* ============================================================
        MODULE LOADING
        ============================================================ */
-    setLoad(3, 'loading three.js…');
+    setLoad(3, 'loading: hussrooms/index.html...');
     const TMO = 15000;
     const _ti = (u) => Promise.race([
       import(u),
@@ -304,7 +288,7 @@
       'https://unpkg.com/three@0.160.0/build/three.module.js',
     ]);
     if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load failed'); }
-    setLoad(15, 'loading loaders…');
+    setLoad(15, 'loading: hussrooms/modules/three.module.js...');
     await yieldFrame();
 
     let _GL = null, _FL = null, _SU = null;
@@ -313,25 +297,25 @@
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
     ]); if (m) _GL = m.GLTFLoader; } catch (e) {}
     
-    setLoad(22, 'loading loaders…');
+    setLoad(22, 'loading: hussrooms/modules/GLTFLoader.js...');
     await yieldFrame();
     try { const m = await _ta([
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
     ]); if (m) _FL = m.FBXLoader; } catch (e) {}
     
-    setLoad(28, 'loading cloner…');
+    setLoad(28, 'loading: hussrooms/modules/FBXLoader.js...');
     await yieldFrame();
     try { const m = await _ta([
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
       'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
     ]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
     
-    setLoad(30, 'building scene…');
+    setLoad(30, 'building scene...');
     await yieldFrame();
 
     /* ============================================================
-       SETUP
+       SETUP & GLOBALS
        ============================================================ */
     const C = _T.MathUtils.clamp;
     const stage = document.getElementById('stage');
@@ -344,10 +328,19 @@
     stage.appendChild(R.domElement);
 
     const scene = new _T.Scene();
-    scene.background = new _T.Color(0xb9a44e);
-    scene.fog = new _T.Fog(0xb9a44e, 10, 50);
-
+    scene.background = new _T.Color(0x0d0a05);
+    
     const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
+
+    // Pre-allocated objects for loop optimization
+    const _vHead = new _T.Vector3();
+    const _vTarget = new _T.Vector3();
+    const _vDir = new _T.Vector3();
+    const _m3 = new _T.Matrix4();
+    const _q3 = new _T.Quaternion();
+    const _e1 = new _T.Euler(0,0,0,'YXZ');
+    const _q1 = new _T.Quaternion();
+    const _up = new _T.Vector3(0, 1, 0);
 
     /* ============================================================
        PROCEDURAL TEXTURES
@@ -361,7 +354,7 @@
       return t;
     }
 
-    setLoad(36, 'painting walls…');
+    setLoad(36, 'generating: hussrooms/assets/walls_texture.png...');
     await yieldFrame();
 
     const wallTex = tex(512, 512, (ctx, w, h) => {
@@ -386,7 +379,7 @@
       ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
     });
 
-    setLoad(44, 'painting floor…');
+    setLoad(44, 'generating: hussrooms/assets/floor_texture.png...');
     await yieldFrame();
 
     const floorTex = tex(256, 256, (ctx, w, h) => {
@@ -409,7 +402,7 @@
       }
     });
 
-    setLoad(51, 'painting ceiling…');
+    setLoad(51, 'generating: hussrooms/assets/ceiling_texture.png...');
     await yieldFrame();
 
     const ceilTex = tex(256, 256, (ctx, w, h) => {
@@ -430,7 +423,7 @@
       ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
     });
 
-    setLoad(58, 'placing lights…');
+    setLoad(58, 'setting up: hussrooms/assets/lights...');
     await yieldFrame();
 
     /* ============================================================
@@ -446,14 +439,30 @@
     const focus = new _T.PointLight(0xffe8a8, 14, 15, 2);
     scene.add(focus);
 
-    setLoad(64, 'raising walls…');
+    setLoad(64, 'building: hussrooms/assets/map...');
     await yieldFrame();
 
     /* ============================================================
-       MAP
+       MAP & SAFE ZONE
        ============================================================ */
-    const WH = 6.0, WT = 0.6, MS = 120;
+    const WH = 6.0, WT = 1.0, MS = 200;
+    const SAFE_RADIUS = 15;
     const boxes = [];
+
+    // Visual Safe Zone
+    const safeGeo = new _T.CylinderGeometry(SAFE_RADIUS, SAFE_RADIUS, 0.2, 32);
+    const safeMat = new _T.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.25, depthWrite: false });
+    const safeMesh = new _T.Mesh(safeGeo, safeMat);
+    safeMesh.position.y = 0.1;
+    scene.add(safeMesh);
+
+    // Safe zone border ring
+    const ringGeo = new _T.RingGeometry(SAFE_RADIUS - 0.2, SAFE_RADIUS, 64);
+    const ringMat = new _T.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.6, side: _T.DoubleSide });
+    const ringMesh = new _T.Mesh(ringGeo, ringMat);
+    ringMesh.rotation.x = -Math.PI / 2;
+    ringMesh.position.y = 0.15;
+    scene.add(ringMesh);
 
     function wall(x, z, w, d) {
       const m = new _T.Mesh(
@@ -471,19 +480,19 @@
     wall(-MS/2, 0, WT, MS);
     wall(MS/2, 0, WT, MS);
 
-    for (let x = -MS/2 + 10; x < MS/2 - 10; x += 20) {
-      for (let z = -MS/2 + 10; z < MS/2 - 10; z += 20) {
-        if (Math.hypot(x, z) < 10) continue;
+    for (let x = -MS/2 + 20; x < MS/2 - 20; x += 25) {
+      for (let z = -MS/2 + 20; z < MS/2 - 20; z += 25) {
+        if (Math.hypot(x, z) < SAFE_RADIUS + 10) continue;
         const r = Math.random();
         if (r < 0.3) {
-          wall(x, z, 8, 1); wall(x - 3.5, z - 3.5, 1, 8);
+          wall(x, z, 10, 1.5); wall(x - 4.5, z - 4.5, 1.5, 10);
         } else if (r < 0.6) {
-          wall(x, z, 10, 1.5); wall(x, z, 1.5, 10);
+          wall(x, z, 12, 2); wall(x, z, 2, 12);
         } else if (r < 0.8) {
-          wall(x, z, 12, 1); wall(x + 6, z + 6, 1, 12);
+          wall(x, z, 14, 1.5); wall(x + 7, z + 7, 1.5, 14);
         } else {
-          wall(x-2, z-2, 2, 2); wall(x+2, z-2, 2, 2);
-          wall(x-2, z+2, 2, 2); wall(x+2, z+2, 2, 2);
+          wall(x-2, z-2, 2.5, 2.5); wall(x+2, z-2, 2.5, 2.5);
+          wall(x-2, z+2, 2.5, 2.5); wall(x+2, z+2, 2.5, 2.5);
         }
       }
     }
@@ -501,14 +510,14 @@
     ce.rotation.x = Math.PI / 2; ce.position.y = WH; ce.receiveShadow = true; scene.add(ce);
 
     const lm = new _T.MeshBasicMaterial({ color: 0xfff6c4 });
-    for (let x = -40; x <= 40; x += 20) {
-      for (let z = -40; z <= 40; z += 20) {
+    for (let x = -MS/2; x <= MS/2; x += 20) {
+      for (let z = -MS/2; z <= MS/2; z += 20) {
         const p = new _T.Mesh(new _T.PlaneGeometry(2.5, 2.5), lm);
         p.rotation.x = Math.PI / 2; p.position.set(x, WH - 0.02, z); scene.add(p);
       }
     }
 
-    setLoad(72, 'building figures…');
+    setLoad(72, 'building: hussrooms/assets/fallback_rigs...');
     await yieldFrame();
 
     /* ============================================================
@@ -526,6 +535,8 @@
 
     let vRig = null, vMix = null;
     let localLabelSprite = null;
+    let localBubble = null;
+    let localBubbleTimer = null;
 
     let playerModelTemplate = null;
     let playerModelAnimations = [];
@@ -577,7 +588,7 @@
     vRig = buildVRig(); viewerVis.add(vRig.root);
 
     /* ============================================================
-       NAME LABELS
+       NAME LABELS & SPEECH BUBBLES
        ============================================================ */
     function makeLabel(nick, title, color, isHost) {
       const c = document.createElement('canvas');
@@ -639,6 +650,101 @@
       return sprite;
     }
 
+    function makeSpeechBubble(text) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 128;
+      const ctx = c.getContext('2d');
+
+      // Draw shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 6;
+
+      // Draw rounded rect background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      if (ctx.roundRect) {
+         ctx.roundRect(16, 10, 480, 80, 16);
+      } else {
+         ctx.rect(16, 10, 480, 80); // fallback
+      }
+      ctx.fill();
+
+      // Draw tail
+      ctx.beginPath();
+      ctx.moveTo(236, 90);
+      ctx.lineTo(256, 122);
+      ctx.lineTo(276, 90);
+      ctx.fill();
+
+      // Reset shadow for text
+      ctx.shadowColor = 'transparent';
+
+      ctx.fillStyle = '#222';
+      ctx.font = 'bold 28px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Trim long text
+      let displayText = text;
+      if (displayText.length > 28) displayText = displayText.slice(0, 25) + '...';
+      
+      ctx.fillText(displayText, 256, 50);
+
+      const tex = new _T.CanvasTexture(c);
+      tex.colorSpace = _T.SRGBColorSpace;
+      const mat = new _T.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      const sprite = new _T.Sprite(mat);
+      sprite.scale.set(2.2, 0.55, 1);
+      sprite.position.y = 3.2; // Above name label
+      sprite.renderOrder = 1000;
+      return sprite;
+    }
+
+    function showLocalBubble(text) {
+      if (localBubble) {
+        viewerVis.remove(localBubble);
+        localBubble.material.map.dispose();
+        localBubble.material.dispose();
+      }
+      localBubble = makeSpeechBubble(text);
+      viewerVis.add(localBubble);
+      
+      clearTimeout(localBubbleTimer);
+      localBubbleTimer = setTimeout(() => {
+        if (localBubble) {
+          viewerVis.remove(localBubble);
+          localBubble.material.map.dispose();
+          localBubble.material.dispose();
+          localBubble = null;
+        }
+      }, 4000);
+    }
+
+    function showRemoteBubble(id, text) {
+      const av = remoteAvatars.get(id);
+      if (!av) return;
+      
+      if (av.bubble) {
+        av.root.remove(av.bubble);
+        av.bubble.material.map.dispose();
+        av.bubble.material.dispose();
+      }
+      
+      av.bubble = makeSpeechBubble(text);
+      av.root.add(av.bubble);
+      
+      clearTimeout(av.bubbleTimer);
+      av.bubbleTimer = setTimeout(() => {
+        if (av.bubble) {
+          av.root.remove(av.bubble);
+          av.bubble.material.map.dispose();
+          av.bubble.material.dispose();
+          av.bubble = null;
+        }
+      }, 4000);
+    }
+
     /* ============================================================
        MODEL CLONING HELPERS
        ============================================================ */
@@ -698,13 +804,14 @@
       return out;
     }
 
-    function firstTex(ps) {
+    function firstTex(ps, onProgress) {
       return new Promise(res => {
         const ld = new _T.TextureLoader(), list = expand(ps);
         let i = 0;
         const next = () => {
           if (i >= list.length) return res(null);
           const url = list[i++];
+          if (onProgress) onProgress(url);
           ld.load(url, t => {
             t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
             t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
@@ -715,10 +822,11 @@
       });
     }
 
-    async function firstModel(paths) {
+    async function firstModel(paths, onProgress) {
       for (const url of paths) {
         const ext = (url.split('.').pop() || '').toLowerCase();
         try {
+          if (onProgress) onProgress(url);
           if (ext === 'fbx' && _FL) {
             const loader = new _FL();
             const obj = await loader.loadAsync(url);
@@ -781,7 +889,8 @@
     }
 
     async function loadAllAssets() {
-      setLoad(78, 'loading figure model…'); await yieldFrame();
+      setLoad(76, 'setting up: hussrooms/index.html...'); await yieldFrame();
+      setLoad(78, 'loading: hussrooms/assets/player.fbx...'); await yieldFrame();
       
       const playerPaths = getPaths([
         'player.fbx', 'Player.fbx', 'player.glb', 'player.gltf'
@@ -793,14 +902,12 @@
         'texter/player'
       ]);
 
-      console.log('[assets] Searching for player model in:', playerPaths);
-
       const [vM, vT] = await Promise.all([
-        firstModel(playerPaths),
-        firstTex(playerTexPaths)
+        firstModel(playerPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`)),
+        firstTex(playerTexPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`))
       ]);
 
-      setLoad(84, 'applying figure…'); await yieldFrame();
+      setLoad(84, 'applying: hussrooms/assets/player.fbx...'); await yieldFrame();
       if (vM) {
         const m = fit(vM.object, playerModelHeight); prep(m, vT);
         if (vRig) { viewerVis.remove(vRig.root); vRig = null; }
@@ -812,15 +919,11 @@
           const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
           if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
         }
-        document.getElementById('dbg-pm').textContent = 'LOADED';
-        document.getElementById('dbg-pm').style.color = '#0f0';
       } else {
-        console.warn('[assets] Player model failed to load. Using fallback box.');
         if (vRig && !viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
-        document.getElementById('dbg-pm').textContent = 'FAILED (Fallback)';
       }
 
-      setLoad(88, 'loading entity model…'); await yieldFrame();
+      setLoad(88, 'loading: hussrooms/assets/entaty.glb...'); await yieldFrame();
       
       const entityPaths = getPaths([
         'entaty.glb', 'entaty.gltf', 'entity.glb', 'entity.gltf', 'entaty.fbx'
@@ -831,49 +934,34 @@
       ]);
 
       const [eM, eT] = await Promise.all([
-        firstModel(entityPaths),
-        firstTex(entityTexPaths)
+        firstModel(entityPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`)),
+        firstTex(entityTexPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`))
       ]);
 
-      setLoad(93, 'applying entity…'); await yieldFrame();
+      setLoad(93, 'applying: hussrooms/assets/entaty.glb...'); await yieldFrame();
       if (eM) {
         const m = fit(eM.object, entityModelHeight); prep(m, eT);
         entityModelTemplate = m;
         entityModelAnimations = eM.animations || [];
         
-        // Prioritize a "run" animation specifically for the Clark
         if (entityModelAnimations.length) {
           let rc = entityModelAnimations.find(c => /run|sprint/i.test(c.name));
           if (!rc) rc = entityModelAnimations.find(c => /walk|move/i.test(c.name));
           if (!rc) rc = entityModelAnimations[0];
           entityModelWalkClip = rc || null;
-          if (rc) console.log("[assets] Clark animation selected:", rc.name);
         }
-        
-        console.log("[assets] Entity model loaded successfully.");
-        document.getElementById('dbg-em').textContent = 'LOADED';
-        document.getElementById('dbg-em').style.color = '#0f0';
-      } else {
-        console.warn("[assets] Entity model failed to load. Using fallback box.");
-        document.getElementById('dbg-em').textContent = 'FAILED (Fallback)';
       }
 
-      if (vT) {
-        document.getElementById('dbg-pt').textContent = 'LOADED';
-        document.getElementById('dbg-pt').style.color = '#0f0';
-      } else {
-        document.getElementById('dbg-pt').textContent = 'FAILED';
-      }
-
-      setLoad(96, 'loading theme…'); await yieldFrame();
+      setLoad(96, 'loading: hussrooms/assets/sounds/theme.mp3...'); await yieldFrame();
       
       const audioPaths = getPaths(['sounds/theme.mp3', 'theme.mp3']);
       for (const url of audioPaths) {
-        themeEl = await loadAudio(url, () => setLoad(98, 'loading theme…'));
+        setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`);
+        themeEl = await loadAudio(url, () => setLoad(98, 'decoding: hussrooms/assets/sounds/theme.mp3...'));
         if (themeEl) break;
       }
 
-      setLoad(99, 'finishing…'); await yieldFrame();
+      setLoad(99, 'finishing: hussrooms/index.html...'); await yieldFrame();
       setLoad(100, 'ready');
     }
 
@@ -889,13 +977,12 @@
     const MOVE_SPEED = 16.0; 
     const vHeading = { y: Math.PI };
 
-    const MON_ACCEL   = 55;
-    const MON_MAXSPD  = 14.5;
+    const MON_ACCEL   = 60;
+    const MON_MAXSPD  = 16.0;
     const MON_FRICTION = 0.35;
-    const MON_TURN     = 3.0;
-    const MON_WANDER   = 0.6;
+    const MON_TURN     = 4.0;
 
-    const MAX_CLARKS = 12;
+    const MAX_CLARKS = 25;
     const clarks = [];   
     let clarkImmunity = false;
 
@@ -932,7 +1019,7 @@
           x = (Math.random() - 0.5) * (MS - 20);
           z = (Math.random() - 0.5) * (MS - 20);
           tries++;
-        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25 && tries < 40);
+        } while ((Math.hypot(x - vPos.x, z - vPos.z) < 25 || Math.hypot(x, z) < SAFE_RADIUS + 5) && tries < 40);
       }
 
       const heading = Math.random() * Math.PI * 2;
@@ -944,7 +1031,10 @@
         id, pos: new _T.Vector3(x, 0, z), vel: new _T.Vector3(0, 0, 0),
         heading, phase: Math.random() * Math.PI * 2, spd: 0,
         root, mixer, fallbackRig,
-        wanderAngle: Math.random() * Math.PI * 2, wanderTimer: 0,
+        wanderAngle: Math.random() * Math.PI * 2, 
+        stateTimer: 0,
+        state: 'wander',
+        wanderTarget: new _T.Vector3(x, 0, z)
       };
       clarks.push(c);
       updateClarkCountUI();
@@ -984,12 +1074,14 @@
           x = (Math.random() - 0.5) * (MS - 20);
           z = (Math.random() - 0.5) * (MS - 20);
           tries++;
-        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25 && tries < 40);
+        } while ((Math.hypot(x - vPos.x, z - vPos.z) < 25 || Math.hypot(x, z) < SAFE_RADIUS + 5) && tries < 40);
         c.pos.set(x, 0, z);
         c.vel.set(0, 0, 0);
         c.heading = Math.random() * Math.PI * 2;
         c.wanderAngle = Math.random() * Math.PI * 2;
-        c.wanderTimer = 0;
+        c.stateTimer = 0;
+        c.state = 'wander';
+        c.wanderTarget.set(x, 0, z);
       });
     }
 
@@ -1058,9 +1150,10 @@
     }
 
     /* ============================================================
-       AUTH — boblox.users
+       AUTH — boblox.users & boblox.username
        ============================================================ */
     const USERS_KEY = 'boblox.users';
+    const USERNAME_KEY = 'boblox.username';
     let myUser = null;
     let joined = false;
 
@@ -1081,6 +1174,14 @@
     }
 
     function showLogin() {
+      let autoNick = null;
+      try { autoNick = localStorage.getItem(USERNAME_KEY); } catch(e){}
+      
+      if (autoNick) {
+        startGame(autoNick.trim().slice(0, 16), 'Explorer');
+        return;
+      }
+
       const users = loadBobloxUsers();
       const list = document.getElementById('user-list');
       list.innerHTML = '';
@@ -1119,7 +1220,7 @@
     /* ============================================================
        MULTIPLAYER NETWORKING
        ============================================================ */
-    const ROOM_ID = 'spatial-walk-mp-v4';
+    const ROOM_ID = 'hussrooms-mp-v4';
     let peer = null, role = null, hostConn = null, guests = [], myId = null, hostId = null, netAccum = 0, retryLock = false;
 
     const allPlayers = new Map();
@@ -1128,7 +1229,7 @@
     const clarkTargets = new Map();
 
     const chatHistory = [];
-    const MAX_CHAT = 50;
+    const MAX_CHAT = 20;
 
     function setHudStatus(text) {
       const el = document.getElementById('hud-status');
@@ -1279,6 +1380,7 @@
         chatHistory.push(cm);
         if (chatHistory.length > MAX_CHAT) chatHistory.shift();
         broadcastToGuests({ type: 'chat', ...cm }, conn);
+        showRemoteBubble(conn.peer, cm.text);
       }
     }
 
@@ -1331,6 +1433,11 @@
         appendChat(cm);
         chatHistory.push(cm);
         if (chatHistory.length > MAX_CHAT) chatHistory.shift();
+        
+        const senderEntry = Array.from(remotePlayers.entries()).find(([_, p]) => p.nick === msg.nick);
+        if (senderEntry) {
+          showRemoteBubble(senderEntry[0], cm.text);
+        }
       } else if (msg.type === 'caught') {
         if (msg.id === myId) {
           vPos.set(0, 0, 0);
@@ -1437,13 +1544,15 @@
       root.rotation.y = data.rot;
       scene.add(root);
 
-      remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost });
+      remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost, bubble: null, bubbleTimer: null });
     }
 
     function removeRemotePlayer(id) {
       const av = remoteAvatars.get(id);
       if (!av) return;
       if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
+      if (av.bubble) { try { av.bubble.material.map.dispose(); av.bubble.material.dispose(); } catch(e){} }
+      clearTimeout(av.bubbleTimer);
       scene.remove(av.root);
       remoteAvatars.delete(id);
       updateOnlineCount();
@@ -1525,6 +1634,8 @@
       chatHistory.push(msg);
       if (chatHistory.length > MAX_CHAT) chatHistory.shift();
 
+      showLocalBubble(text);
+
       if (role === 'host') broadcastToGuests({ type: 'chat', ...msg });
       else if (hostConn && hostConn.open) {
         try { hostConn.send({ type: 'chat', ...msg }); } catch (e) {}
@@ -1537,21 +1648,15 @@
     });
 
     /* ============================================================
-       ADMIN & DEBUG PANEL
+       ADMIN PANEL
        ============================================================ */
     const adminKeys = [];
     let adminPanelOpen = false;
-    let debugMode = false;
 
     function toggleAdminPanel(force) {
       adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
       document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
       if (adminPanelOpen) updateClarkCountUI();
-    }
-
-    function toggleDebug(force) {
-      debugMode = (typeof force === 'boolean') ? force : !debugMode;
-      document.getElementById('debug-overlay').style.display = debugMode ? 'block' : 'none';
     }
 
     document.querySelectorAll('#admin-panel button').forEach(btn => {
@@ -1570,10 +1675,6 @@
         if (adminKeys.join('') === 'dev') {
           adminKeys.length = 0;
           toggleAdminPanel();
-          toggleDebug();
-          console.log("%c--- DEBUG MODE ACTIVATED ---", "color: #0f0; font-weight: bold; font-size: 16px;");
-          console.log("Player Model:", playerModelTemplate);
-          console.log("Entity Model:", entityModelTemplate);
         }
       } else adminKeys.length = 0;
     });
@@ -1745,13 +1846,12 @@
     window.addEventListener('resize', resize);
 
     /* ============================================================
-       CLARK PHYSICS (HOST ONLY) - TARGETS NEAREST PLAYER
+       CLARK PHYSICS (HOST ONLY) - STATE MACHINE & STEERING
        ============================================================ */
     function getNearestTarget(x, z) {
       let bestX = vPos.x, bestZ = vPos.z;
       let minDist = Infinity;
       
-      // allPlayers is maintained on the host, containing the host and all guests
       if (role === 'host') {
         allPlayers.forEach(p => {
           const d = Math.hypot(p.x - x, p.z - z);
@@ -1762,25 +1862,62 @@
           }
         });
       }
-      return { x: bestX, z: bestZ };
+      return { x: bestX, z: bestZ, dist: minDist };
     }
 
     function updateClarkPhysics(c, dt) {
-      c.wanderTimer -= dt;
-      if (c.wanderTimer <= 0) {
-        c.wanderTimer = 0.8 + Math.random() * 1.8;
-        c.wanderAngle += (Math.random() - 0.5) * Math.PI * 1.2;
+      const target = getNearestTarget(c.pos.x, c.pos.z);
+      const distToTarget = target.dist;
+      
+      c.stateTimer -= dt;
+
+      // Determine AI State
+      if (distToTarget < 40) {
+        c.state = 'hunt';
+      } else {
+        c.state = 'wander';
       }
 
-      // Find nearest player dynamically
-      const target = getNearestTarget(c.pos.x, c.pos.z);
-      const pdx = target.x - c.pos.x;
-      const pdz = target.z - c.pos.z;
+      let desiredX = 0, desiredZ = 0;
+      let currentMaxSpeed = MON_MAXSPD;
+
+      if (c.state === 'hunt') {
+        desiredX = target.x;
+        desiredZ = target.z;
+        
+        // Sneak up logic
+        if (distToTarget < 15 && distToTarget > 4) {
+          currentMaxSpeed = MON_MAXSPD * 0.35; // Creep slowly
+        } else if (distToTarget <= 4) {
+          currentMaxSpeed = MON_MAXSPD * 1.6; // Lunge when close
+        }
+      } else {
+        // Wander logic
+        if (c.stateTimer <= 0 || Math.hypot(c.wanderTarget.x - c.pos.x, c.wanderTarget.z - c.pos.z) < 2) {
+          c.stateTimer = 3 + Math.random() * 4;
+          c.wanderTarget.set(
+            c.pos.x + (Math.random() - 0.5) * 30,
+            0,
+            c.pos.z + (Math.random() - 0.5) * 30
+          );
+          // Keep in map bounds
+          c.wanderTarget.x = C(c.wanderTarget.x, -MS/2 + 5, MS/2 - 5);
+          c.wanderTarget.z = C(c.wanderTarget.z, -MS/2 + 5, MS/2 - 5);
+        }
+        desiredX = c.wanderTarget.x;
+        desiredZ = c.wanderTarget.z;
+      }
+
+      const pdx = desiredX - c.pos.x;
+      const pdz = desiredZ - c.pos.z;
       const pd = Math.hypot(pdx, pdz) || 1;
 
-      const wx = Math.cos(c.wanderAngle) * MON_WANDER;
-      const wz = Math.sin(c.wanderAngle) * MON_WANDER;
+      // Weave / Wander offset
+      c.wanderAngle += (Math.random() - 0.5) * dt * 4;
+      const wx = Math.cos(c.wanderAngle) * (c.state === 'hunt' ? 0.3 : 0.8);
+      const wz = Math.sin(c.wanderAngle) * (c.state === 'hunt' ? 0.3 : 0.8);
 
+      // Apply steering force
       c.vel.x += ((pdx / pd) + wx) * MON_ACCEL * dt;
       c.vel.z += ((pdz / pd) + wz) * MON_ACCEL * dt;
 
@@ -1788,14 +1925,44 @@
       c.vel.x *= fr; c.vel.z *= fr;
 
       const mspd = Math.hypot(c.vel.x, c.vel.z);
-      if (mspd > MON_MAXSPD) {
-        const kk = MON_MAXSPD / mspd;
+      if (mspd > currentMaxSpeed) {
+        const kk = currentMaxSpeed / mspd;
         c.vel.x *= kk; c.vel.z *= kk;
       }
 
-      c.pos.x += c.vel.x * dt;
-      c.pos.z += c.vel.z * dt;
-      resolve(c.pos, 0.6, c.vel);
+      // Sub-stepping to prevent tunneling & safe zone entry
+      const dist = mspd * dt;
+      const steps = Math.ceil(dist / 0.2) || 1;
+      const stepDt = dt / steps;
+      let hitWall = false;
+
+      for (let i = 0; i < steps; i++) {
+        const oldX = c.pos.x, oldZ = c.pos.z;
+        c.pos.x += c.vel.x * stepDt;
+        c.pos.z += c.vel.z * stepDt;
+        resolve(c.pos, 0.6, c.vel);
+
+        // Check if resolve pushed us back (indicating a wall hit)
+        if (Math.hypot(c.pos.x - oldX, c.pos.z - oldZ) < Math.abs(mspd * stepDt) * 0.5) {
+          hitWall = true;
+        }
+
+        // Safe Zone constraint
+        const dToCenter = Math.hypot(c.pos.x, c.pos.z);
+        if (dToCenter < SAFE_RADIUS) {
+          const nx = c.pos.x / (dToCenter || 1);
+          const nz = c.pos.z / (dToCenter || 1);
+          c.pos.x = nx * SAFE_RADIUS;
+          c.pos.z = nz * SAFE_RADIUS;
+          c.vel.x = 0; c.vel.z = 0;
+        }
+      }
+
+      // If they hit a wall, steer away to unstick
+      if (hitWall) {
+        c.wanderAngle += Math.PI + (Math.random() - 0.5);
+        if (c.state === 'wander') c.stateTimer = 0; // Force new target next frame
+      }
 
       if (mspd > 0.5) {
         const ta = Math.atan2(c.vel.x, c.vel.z);
@@ -1810,17 +1977,23 @@
     function hostCheckClarkCatch() {
       if (role !== 'host' || clarkImmunity) return;
       if (!clarks.length) return;
+      
+      const localSafe = Math.hypot(vPos.x, vPos.z) < SAFE_RADIUS;
       const caught = [];
 
-      const localCaught = clarks.some(c => Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1);
-      if (localCaught) {
-        vPos.set(0, 0, 0);
-        appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
-        caught.push(myId);
+      if (!localSafe) {
+        const localCaught = clarks.some(c => Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1);
+        if (localCaught) {
+          vPos.set(0, 0, 0);
+          appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
+          caught.push(myId);
+        }
       }
 
       allPlayers.forEach((p, id) => {
         if (id === myId) return;
+        if (Math.hypot(p.x, p.z) < SAFE_RADIUS) return;
+        
         const hit = clarks.some(c => Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1);
         if (hit) {
           caught.push(id);
@@ -1871,11 +2044,9 @@
           c.fallbackRig.armR.rotation.x = s * 0.8;
         }
         
-        // Dynamic Animation Speed for Clark Running
         if (c.mixer && entityModelWalkClip) {
           const act = c.mixer.clipAction(entityModelWalkClip);
           if (act) {
-            // Speeds up when running fast, slows slightly when idling
             act.timeScale = Math.max(0.2, c.spd / 3.0);
           }
           c.mixer.update(dt);
@@ -1898,7 +2069,6 @@
        ============================================================ */
     const clock = new _T.Clock();
     let vWalk = 0;
-    let frames = 0, lastFpsTime = performance.now();
 
     function step(dt) {
       nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
@@ -1912,9 +2082,16 @@
       const fz = -Math.cos(oYaw);
       
       if (holding) {
-        vPos.x += fx * MOVE_SPEED * dt;
-        vPos.z += fz * MOVE_SPEED * dt;
-        resolve(vPos, 0.4, null);
+        const dist = MOVE_SPEED * dt;
+        const steps = Math.ceil(dist / 0.2) || 1;
+        const stepDt = dt / steps;
+
+        for (let i = 0; i < steps; i++) {
+          vPos.x += fx * MOVE_SPEED * stepDt;
+          vPos.z += fz * MOVE_SPEED * stepDt;
+          resolve(vPos, 0.4, null);
+        }
+        
         vWalk += dt * MOVE_SPEED * 2.6;
         vHeading.y = Math.atan2(fx, fz);
       }
@@ -1954,29 +2131,32 @@
         }
       }
 
-      const head = new _T.Vector3(vPos.x, vPos.y + 1.65, vPos.z);
-      const target = new _T.Vector3(vPos.x, vPos.y + 1.25, vPos.z);
+      _vHead.set(vPos.x, vPos.y + 1.65, vPos.z);
+      _vTarget.set(vPos.x, vPos.y + 1.25, vPos.z);
 
-      const dir = new _T.Vector3(
+      _vDir.set(
         Math.sin(oYaw) * Math.cos(oPitch),
         -Math.sin(oPitch),
         Math.cos(oYaw) * Math.cos(oPitch)
       ).normalize();
 
-      const d = camLimit(target, dir, oDist);
-      const desired = target.clone().addScaledVector(dir, d);
-      if (desired.y < 0.22) desired.y = 0.22;
+      const d = camLimit(_vTarget, _vDir, oDist);
+      const desiredX = _vTarget.x + _vDir.x * d;
+      const desiredY = Math.max(0.22, _vTarget.y + _vDir.y * d);
+      const desiredZ = _vTarget.z + _vDir.z * d;
 
       const nearEase = C((2.4 - oDist) / 1.6, 0, 1);
       const ease = nearEase * nearEase * (3 - 2 * nearEase);
 
-      cam.position.lerpVectors(desired, head, ease);
+      cam.position.x = desiredX + (_vHead.x - desiredX) * ease;
+      cam.position.y = desiredY + (_vHead.y - desiredY) * ease;
+      cam.position.z = desiredZ + (_vHead.z - desiredZ) * ease;
 
-      const m3 = new _T.Matrix4().lookAt(cam.position, target, new _T.Vector3(0, 1, 0));
-      const q3 = new _T.Quaternion().setFromRotationMatrix(m3);
-      const e1 = new _T.Euler(oPitch, oYaw, 0, 'YXZ');
-      const q1 = new _T.Quaternion().setFromEuler(e1);
-      cam.quaternion.copy(q3).slerp(q1, ease);
+      _m3.lookAt(cam.position, _vTarget, _up);
+      _q3.setFromRotationMatrix(_m3);
+      _e1.set(oPitch, oYaw, 0);
+      _q1.setFromEuler(_e1);
+      cam.quaternion.copy(_q3).slerp(_q1, ease);
 
       viewerVis.visible = true;
 
@@ -2000,26 +2180,12 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       step(dt);
       R.render(scene, cam);
-
-      if (debugMode) {
-        frames++;
-        const now = performance.now();
-        if (now - lastFpsTime >= 1000) {
-          const fps = Math.round((frames * 1000) / (now - lastFpsTime));
-          document.getElementById('dbg-fps').textContent = fps;
-          document.getElementById('dbg-clarks').textContent = clarks.length;
-          frames = 0;
-          lastFpsTime = now;
-        }
-      }
     }
 
     /* ============================================================
        BOOT
        ============================================================ */
     resize();
-    appendChat({ system: true, text: 'Welcome to Spatial Walk.' });
-
     loadAllAssets()
       .catch((err) => { console.warn('Asset load error', err); })
       .finally(() => {
