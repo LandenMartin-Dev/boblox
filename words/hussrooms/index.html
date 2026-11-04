@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Spatial Walk — Multiplayer</title>
+  <title>boblox | clarkrooms</title>
   <meta name="description" content="Multiplayer spatial walkthrough with boblox.users identities." />
   <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
   <style>
@@ -38,6 +38,16 @@
       font-size: 11px; color: rgba(255,245,210,.5);
       margin-top: 6px; letter-spacing: .08em;
     }
+
+    /* ----- debug overlay ----- */
+    #debug-overlay {
+      display: none; position: fixed; top: 14px; right: 14px; 
+      background: rgba(13,10,5,0.85); color: #0f0; font-family: monospace; 
+      padding: 12px; font-size: 12px; z-index: 9999; pointer-events: none; 
+      text-align: left; border: 1px solid #0f0; border-radius: 6px; line-height: 1.6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    #debug-overlay .title { font-weight: bold; border-bottom: 1px solid #0f0; padding-bottom: 4px; margin-bottom: 6px; }
 
     /* ----- chat ----- */
     #chat-panel {
@@ -218,6 +228,16 @@
     <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
   </div>
 
+  <!-- DEBUG OVERLAY (D+E+V) -->
+  <div id="debug-overlay">
+    <div class="title">DEBUG MODE (D+E+V)</div>
+    <div>Player Model: <span id="dbg-pm" style="color:#f00;">...</span></div>
+    <div>Entity Model: <span id="dbg-em" style="color:#f00;">...</span></div>
+    <div>Player Tex: <span id="dbg-pt" style="color:#f00;">...</span></div>
+    <div>FPS: <span id="dbg-fps" style="color:#0f0;">0</span></div>
+    <div>Clarks: <span id="dbg-clarks" style="color:#0f0;">0</span></div>
+  </div>
+
   <!-- CHAT -->
   <div id="chat-panel">
     <div id="chat-messages"></div>
@@ -268,7 +288,7 @@
        MODULE LOADING
        ============================================================ */
     setLoad(3, 'loading three.js…');
-    const TMO = 10000;
+    const TMO = 15000;
     const _ti = (u) => Promise.race([
       import(u),
       new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
@@ -292,18 +312,21 @@
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
     ]); if (m) _GL = m.GLTFLoader; } catch (e) {}
+    
     setLoad(22, 'loading loaders…');
     await yieldFrame();
     try { const m = await _ta([
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
     ]); if (m) _FL = m.FBXLoader; } catch (e) {}
+    
     setLoad(28, 'loading cloner…');
     await yieldFrame();
     try { const m = await _ta([
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
       'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
     ]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
+    
     setLoad(30, 'building scene…');
     await yieldFrame();
 
@@ -327,7 +350,7 @@
     const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
 
     /* ============================================================
-       PROCEDURAL TEXTURES (walls / floor / ceiling)
+       PROCEDURAL TEXTURES
        ============================================================ */
     function tex(w, h, draw) {
       const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -507,12 +530,12 @@
     let playerModelTemplate = null;
     let playerModelAnimations = [];
     let playerModelIdleClip = null;
-    let playerModelHeight = 1.85;
+    const playerModelHeight = 1.85;
 
     let entityModelTemplate = null;
     let entityModelAnimations = [];
     let entityModelWalkClip = null;
-    let entityModelHeight = 2.2;
+    const entityModelHeight = 2.2;
 
     function buildVRig() {
       const root = new _T.Group();
@@ -625,7 +648,8 @@
         try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
       }
       try {
-        const isSkinned = (() => { let s = false; source.traverse(o => { if (o.isSkinnedMesh) s = true; }); return s; })();
+        let isSkinned = false;
+        source.traverse(o => { if (o.isSkinnedMesh) isSkinned = true; });
         if (!isSkinned) return source.clone(true);
       } catch (e) { console.warn('clone fallback failed', e); }
       return null;
@@ -655,6 +679,16 @@
     /* ============================================================
        ASSET LOADING
        ============================================================ */
+    const BASE = './assets';
+
+    function getPaths(variants) {
+      const paths = [];
+      for (const f of variants) {
+        paths.push(`${BASE}/${f}`);
+      }
+      return paths;
+    }
+
     function expand(ps) {
       const e = ['.png', '.jpg', '.jpeg', '.webp'], out = [];
       for (const p of ps) {
@@ -670,9 +704,11 @@
         let i = 0;
         const next = () => {
           if (i >= list.length) return res(null);
-          ld.load(list[i++], t => {
+          const url = list[i++];
+          ld.load(url, t => {
             t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
             t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
+            console.log('[assets] Loaded texture:', url);
           }, undefined, next);
         };
         next();
@@ -681,18 +717,22 @@
 
     async function firstModel(paths) {
       for (const url of paths) {
-        const ext = url.split('.').pop().toLowerCase();
+        const ext = (url.split('.').pop() || '').toLowerCase();
         try {
           if (ext === 'fbx' && _FL) {
-            const obj = await _FL.loadAsync(url);
-            return { object: obj, animations: [] };
+            const loader = new _FL();
+            const obj = await loader.loadAsync(url);
+            console.log('[assets] Loaded FBX model:', url);
+            return { object: obj, animations: obj.animations || [] };
           }
           if ((ext === 'glb' || ext === 'gltf') && _GL) {
-            const g = await _GL.loadAsync(url);
+            const loader = new _GL();
+            const g = await loader.loadAsync(url);
+            console.log('[assets] Loaded GLTF/GLB model:', url);
             return { object: g.scene, animations: g.animations || [] };
           }
         } catch (e) {
-          console.warn('Failed to load model at:', url, e);
+          console.warn('[assets] Failed 404/Error:', url);
         }
       }
       return null;
@@ -714,7 +754,6 @@
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) {
           if (!m) continue;
-          // Apply external texture if provided, even when a blank map exists
           if (fbTex && 'map' in m) {
             m.map = fbTex;
             if (m.color) m.color.setHex(0xffffff);
@@ -744,11 +783,23 @@
     async function loadAllAssets() {
       setLoad(78, 'loading figure model…'); await yieldFrame();
       
-      const playerPath = './assets/player.fbx';
-      const [vM, vT] = await Promise.all([
-        firstModel([playerPath, './assets/player.glb', './assets/player.gltf']),
-        firstTex(['./assets/texters/player/player', './assets/texters/player/texture'])
+      const playerPaths = getPaths([
+        'player.fbx', 'Player.fbx', 'player.glb', 'player.gltf'
       ]);
+      const playerTexPaths = getPaths([
+        'texter/player/shaded',
+        'texter/player/player',
+        'texter/player/texture',
+        'texter/player'
+      ]);
+
+      console.log('[assets] Searching for player model in:', playerPaths);
+
+      const [vM, vT] = await Promise.all([
+        firstModel(playerPaths),
+        firstTex(playerTexPaths)
+      ]);
+
       setLoad(84, 'applying figure…'); await yieldFrame();
       if (vM) {
         const m = fit(vM.object, playerModelHeight); prep(m, vT);
@@ -761,40 +812,67 @@
           const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
           if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
         }
-      } else if (vRig) {
-        if (!viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
+        document.getElementById('dbg-pm').textContent = 'LOADED';
+        document.getElementById('dbg-pm').style.color = '#0f0';
+      } else {
+        console.warn('[assets] Player model failed to load. Using fallback box.');
+        if (vRig && !viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
+        document.getElementById('dbg-pm').textContent = 'FAILED (Fallback)';
       }
 
       setLoad(88, 'loading entity model…'); await yieldFrame();
-      const [eM, eT] = await Promise.all([
-        firstModel([
-          './assets/entaty.glb', './assets/entaty.gltf',
-          './assets/entity.glb', './assets/entity.gltf',
-          './assets/entaty.fbx', './assets/entity.fbx'
-        ]),
-        firstTex([
-          './assets/texters/entaty/entaty',
-          './assets/texters/entaty/texture',
-          './assets/texters/entity/entity',
-          './assets/texters/entity/texture'
-        ])
+      
+      const entityPaths = getPaths([
+        'entaty.glb', 'entaty.gltf', 'entity.glb', 'entity.gltf', 'entaty.fbx'
       ]);
+      const entityTexPaths = getPaths([
+        'texter/entaty/entaty', 'texter/entaty/texture', 'texter/entaty',
+        'texter/entity/entity', 'textures/entaty', 'entaty'
+      ]);
+
+      const [eM, eT] = await Promise.all([
+        firstModel(entityPaths),
+        firstTex(entityTexPaths)
+      ]);
+
       setLoad(93, 'applying entity…'); await yieldFrame();
       if (eM) {
         const m = fit(eM.object, entityModelHeight); prep(m, eT);
         entityModelTemplate = m;
         entityModelAnimations = eM.animations || [];
-        if (eM.animations.length) {
-          const rc = eM.animations.find(c => /run|walk|move/i.test(c.name)) || eM.animations[0];
+        
+        // Prioritize a "run" animation specifically for the Clark
+        if (entityModelAnimations.length) {
+          let rc = entityModelAnimations.find(c => /run|sprint/i.test(c.name));
+          if (!rc) rc = entityModelAnimations.find(c => /walk|move/i.test(c.name));
+          if (!rc) rc = entityModelAnimations[0];
           entityModelWalkClip = rc || null;
+          if (rc) console.log("[assets] Clark animation selected:", rc.name);
         }
-        console.log("Entity model loaded successfully.");
+        
+        console.log("[assets] Entity model loaded successfully.");
+        document.getElementById('dbg-em').textContent = 'LOADED';
+        document.getElementById('dbg-em').style.color = '#0f0';
       } else {
-        console.warn("Entity model not loaded — using fallback rig for Clarks.");
+        console.warn("[assets] Entity model failed to load. Using fallback box.");
+        document.getElementById('dbg-em').textContent = 'FAILED (Fallback)';
+      }
+
+      if (vT) {
+        document.getElementById('dbg-pt').textContent = 'LOADED';
+        document.getElementById('dbg-pt').style.color = '#0f0';
+      } else {
+        document.getElementById('dbg-pt').textContent = 'FAILED';
       }
 
       setLoad(96, 'loading theme…'); await yieldFrame();
-      themeEl = await loadAudio('./assets/sounds/theme.mp3', () => setLoad(98, 'loading theme…'));
+      
+      const audioPaths = getPaths(['sounds/theme.mp3', 'theme.mp3']);
+      for (const url of audioPaths) {
+        themeEl = await loadAudio(url, () => setLoad(98, 'loading theme…'));
+        if (themeEl) break;
+      }
+
       setLoad(99, 'finishing…'); await yieldFrame();
       setLoad(100, 'ready');
     }
@@ -808,8 +886,6 @@
     let tYaw = 0, tPitch = 0.18, tDist = 8.5;
 
     let holding = false;
-
-    // Sprint speed is now the normal speed (shift removed)
     const MOVE_SPEED = 16.0; 
     const vHeading = { y: Math.PI };
 
@@ -817,17 +893,13 @@
     const MON_MAXSPD  = 14.5;
     const MON_FRICTION = 0.35;
     const MON_TURN     = 3.0;
-    const MON_WANDER   = 0.6; // slight random movement
+    const MON_WANDER   = 0.6;
 
-    /* ---- Multiple Clarks ---- */
     const MAX_CLARKS = 12;
     const clarks = [];   
-
     let clarkImmunity = false;
 
-    function makeClarkId() {
-      return 'c' + Math.random().toString(36).slice(2, 9);
-    }
+    function makeClarkId() { return 'c' + Math.random().toString(36).slice(2, 9); }
 
     function spawnClark(x, z) {
       if (clarks.length >= MAX_CLARKS) return null;
@@ -855,10 +927,12 @@
 
       const id = makeClarkId();
       if (x == null || z == null) {
+        let tries = 0;
         do {
           x = (Math.random() - 0.5) * (MS - 20);
           z = (Math.random() - 0.5) * (MS - 20);
-        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+          tries++;
+        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25 && tries < 40);
       }
 
       const heading = Math.random() * Math.PI * 2;
@@ -867,17 +941,10 @@
       clarkGroup.add(root);
 
       const c = {
-        id,
-        pos: new _T.Vector3(x, 0, z),
-        vel: new _T.Vector3(0, 0, 0),
-        heading,
-        phase: Math.random() * Math.PI * 2,
-        spd: 0,
-        root,
-        mixer,
-        fallbackRig,
-        wanderAngle: Math.random() * Math.PI * 2, // for wandering
-        wanderTimer: 0,
+        id, pos: new _T.Vector3(x, 0, z), vel: new _T.Vector3(0, 0, 0),
+        heading, phase: Math.random() * Math.PI * 2, spd: 0,
+        root, mixer, fallbackRig,
+        wanderAngle: Math.random() * Math.PI * 2, wanderTimer: 0,
       };
       clarks.push(c);
       updateClarkCountUI();
@@ -891,6 +958,7 @@
       if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
       clarkGroup.remove(c.root);
       clarks.splice(i, 1);
+      clarkTargets.delete(id);
       updateClarkCountUI();
     }
 
@@ -904,22 +972,19 @@
         const c = clarks.pop();
         if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
         clarkGroup.remove(c.root);
+        clarkTargets.delete(c.id);
       }
       updateClarkCountUI();
     }
 
-    function addClarkRandom() {
-      if (clarks.length >= MAX_CLARKS) return;
-      spawnClark();
-    }
-
     function resetAllClarks() {
       clarks.forEach(c => {
-        let x, z;
+        let x, z, tries = 0;
         do {
           x = (Math.random() - 0.5) * (MS - 20);
           z = (Math.random() - 0.5) * (MS - 20);
-        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25);
+          tries++;
+        } while (Math.hypot(x - vPos.x, z - vPos.z) < 25 && tries < 40);
         c.pos.set(x, 0, z);
         c.vel.set(0, 0, 0);
         c.heading = Math.random() * Math.PI * 2;
@@ -1012,9 +1077,7 @@
           if (rec && typeof rec === 'object') users[k] = rec;
         });
         return users;
-      } catch (e) {
-        return {};
-      }
+      } catch (e) { return {}; }
     }
 
     function showLogin() {
@@ -1057,20 +1120,12 @@
        MULTIPLAYER NETWORKING
        ============================================================ */
     const ROOM_ID = 'spatial-walk-mp-v4';
+    let peer = null, role = null, hostConn = null, guests = [], myId = null, hostId = null, netAccum = 0, retryLock = false;
 
-    let peer = null;
-    let role = null;
-    let hostConn = null;
-    let guests = [];
-    let myId = null;
-    let hostId = null;
-    let netAccum = 0;
-    let retryLock = false;
-
-    const allPlayers = new Map();      
-    const remotePlayers = new Map();   
-    const remoteAvatars = new Map();   
-    const clarkTargets = new Map();    
+    const allPlayers = new Map();
+    const remotePlayers = new Map();
+    const remoteAvatars = new Map();
+    const clarkTargets = new Map();
 
     const chatHistory = [];
     const MAX_CHAT = 50;
@@ -1100,13 +1155,10 @@
 
       p.on('open', (id) => {
         if (peer !== p) return;
-        myId = id;
-        hostId = id;
-        role = 'host';
+        myId = id; hostId = id; role = 'host';
         allPlayers.set(myId, {
           nick: myUser.nick, title: myUser.title,
-          x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0,
-          isHost: true,
+          x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0, isHost: true,
         });
         updateOnlineCount();
         appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
@@ -1124,9 +1176,7 @@
         }
       });
 
-      p.on('disconnected', () => {
-        try { p.reconnect(); } catch (e) {}
-      });
+      p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
     }
 
     function joinAsGuest() {
@@ -1165,7 +1215,6 @@
 
     function onGuest(conn) {
       guests.push(conn);
-
       const players = {};
       allPlayers.forEach((p, id) => { players[id] = p; });
       players[myId] = {
@@ -1176,11 +1225,9 @@
 
       try {
         conn.send({
-          type: 'tick',
-          hostId: myId,
+          type: 'tick', hostId: myId,
           clarks: clarks.map(serializeClark),
-          clarkImmunity,
-          players,
+          clarkImmunity, players,
         });
       } catch (e) {}
 
@@ -1199,17 +1246,11 @@
       };
       conn.on('close', drop);
       conn.on('error', drop);
-
       updateOnlineCount();
     }
 
     function serializeClark(c) {
-      return {
-        id: c.id,
-        x: c.pos.x, y: c.pos.y, z: c.pos.z,
-        rot: c.heading,
-        spd: c.spd,
-      };
+      return { id: c.id, x: c.pos.x, y: c.pos.y, z: c.pos.z, rot: c.heading, spd: c.spd };
     }
 
     function handleFromGuest(msg, conn) {
@@ -1217,10 +1258,8 @@
 
       if (msg.type === 'update') {
         const data = {
-          nick: msg.nick || 'Guest',
-          title: msg.title || 'Guest',
-          x: msg.x, y: msg.y, z: msg.z, rot: msg.rot,
-          spd: msg.spd, isHost: false,
+          nick: msg.nick || 'Guest', title: msg.title || 'Guest',
+          x: msg.x, y: msg.y, z: msg.z, rot: msg.rot, spd: msg.spd, isHost: false,
         };
         const prev = allPlayers.get(conn.peer);
         if (!prev) {
@@ -1257,14 +1296,9 @@
             let c = clarks.find(x => x.id === sc.id);
             if (!c) {
               const created = spawnClark(sc.x, sc.z);
-              if (created) {
-                created.id = sc.id;
-                c = created;
-              }
+              if (created) { created.id = sc.id; c = created; }
             }
-            if (c) {
-              clarkTargets.set(sc.id, sc);
-            }
+            if (c) clarkTargets.set(sc.id, sc);
           });
           for (let i = clarks.length - 1; i >= 0; i--) {
             if (!seen.has(clarks[i].id)) removeClark(clarks[i].id);
@@ -1280,13 +1314,11 @@
             if (!entry) {
               entry = { ...p };
               remotePlayers.set(id, entry);
-            } else {
-              Object.assign(entry, p);
-            }
+            } else Object.assign(entry, p);
             ensureRemoteAvatar(id, entry);
           });
 
-          remotePlayers.forEach((_, id) => {
+          Array.from(remotePlayers.keys()).forEach(id => {
             if (!seen.has(id)) {
               remotePlayers.delete(id);
               removeRemotePlayer(id);
@@ -1306,15 +1338,12 @@
         }
       } else if (msg.type === 'kicked') {
         appendChat({ system: true, text: 'You were removed from the room by the host.' });
-        destroyPeer();
-        role = null;
-        setHudStatus('○ kicked');
+        joined = false; destroyPeer(); role = null; setHudStatus('○ kicked');
       }
     }
 
     function sendHostTick() {
       if (role !== 'host' || !myUser) return;
-
       allPlayers.set(myId, {
         nick: myUser.nick, title: myUser.title,
         x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
@@ -1325,23 +1354,18 @@
       allPlayers.forEach((p, id) => { players[id] = p; });
 
       const msg = {
-        type: 'tick',
-        hostId: myId,
+        type: 'tick', hostId: myId,
         clarks: clarks.map(serializeClark),
-        clarkImmunity,
-        players,
+        clarkImmunity, players,
       };
 
-      guests.forEach(g => {
-        if (g.open) { try { g.send(msg); } catch (e) {} }
-      });
+      guests.forEach(g => { if (g.open) { try { g.send(msg); } catch (e) {} } });
     }
 
     function sendGuestUpdate() {
       if (role !== 'guest' || !hostConn || !hostConn.open || !myUser) return;
       const msg = {
-        type: 'update',
-        nick: myUser.nick, title: myUser.title,
+        type: 'update', nick: myUser.nick, title: myUser.title,
         x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
         spd: holding ? MOVE_SPEED : 0,
       };
@@ -1349,29 +1373,26 @@
     }
 
     function broadcastToGuests(msg, exclude) {
-      guests.forEach(g => {
-        if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} }
-      });
+      guests.forEach(g => { if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} } });
     }
 
     function destroyPeer() {
       if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
-      hostConn = null;
-      guests = [];
+      hostConn = null; guests = [];
     }
 
     function scheduleRetry() {
-      if (retryLock) return;
+      if (retryLock || !joined) return;
       retryLock = true;
       setHudStatus('○ reconnecting…');
       setTimeout(() => {
         retryLock = false;
-        if (joined) initNet();
+        if (joined && myUser) initNet();
       }, 2500);
     }
 
     function clearAllAvatars() {
-      remoteAvatars.forEach((_, id) => removeRemotePlayer(id));
+      Array.from(remoteAvatars.keys()).forEach(id => removeRemotePlayer(id));
       remoteAvatars.clear();
     }
 
@@ -1386,17 +1407,13 @@
 
     function ensureRemoteAvatar(id, data) {
       if (remoteAvatars.has(id)) return;
-
       const hue = hashHue(id);
-      let root = null;
-      let rig = null;
-      let mixer = null;
+      let root = null, rig = null, mixer = null;
 
       const cloned = cloneModel(playerModelTemplate);
       if (cloned) {
         tintClone(cloned, hue);
-        root = new _T.Group();
-        root.add(cloned);
+        root = new _T.Group(); root.add(cloned);
         if (playerModelIdleClip) {
           try {
             mixer = new _T.AnimationMixer(cloned);
@@ -1404,8 +1421,7 @@
           } catch (e) { mixer = null; }
         }
       } else {
-        rig = buildVRig();
-        root = rig.root;
+        rig = buildVRig(); root = rig.root;
         root.traverse(o => {
           if (o.isMesh && o.material) {
             o.material = o.material.clone();
@@ -1415,8 +1431,7 @@
       }
 
       const label = makeLabel(data.nick, data.title, '#fff5d2', !!data.isHost);
-      label.position.y = 2.4;
-      root.add(label);
+      label.position.y = 2.4; root.add(label);
 
       root.position.set(data.x, data.y, data.z);
       root.rotation.y = data.rot;
@@ -1484,15 +1499,11 @@
         div.textContent = '· ' + msg.text;
       } else {
         const who = document.createElement('span');
-        who.className = 'who';
-        who.textContent = msg.nick || 'Anon';
+        who.className = 'who'; who.textContent = msg.nick || 'Anon';
         div.appendChild(who);
-
         if (msg.title) {
           const t = document.createElement('span');
-          t.className = 'title';
-          t.textContent = msg.title;
-          div.appendChild(t);
+          t.className = 'title'; t.textContent = msg.title; div.appendChild(t);
         }
         div.appendChild(document.createTextNode(': ' + (msg.text || '')));
       }
@@ -1526,15 +1537,21 @@
     });
 
     /* ============================================================
-       ADMIN PANEL
+       ADMIN & DEBUG PANEL
        ============================================================ */
     const adminKeys = [];
     let adminPanelOpen = false;
+    let debugMode = false;
 
     function toggleAdminPanel(force) {
       adminPanelOpen = (typeof force === 'boolean') ? force : !adminPanelOpen;
       document.getElementById('admin-panel').classList.toggle('open', adminPanelOpen);
       if (adminPanelOpen) updateClarkCountUI();
+    }
+
+    function toggleDebug(force) {
+      debugMode = (typeof force === 'boolean') ? force : !debugMode;
+      document.getElementById('debug-overlay').style.display = debugMode ? 'block' : 'none';
     }
 
     document.querySelectorAll('#admin-panel button').forEach(btn => {
@@ -1553,15 +1570,17 @@
         if (adminKeys.join('') === 'dev') {
           adminKeys.length = 0;
           toggleAdminPanel();
+          toggleDebug();
+          console.log("%c--- DEBUG MODE ACTIVATED ---", "color: #0f0; font-weight: bold; font-size: 16px;");
+          console.log("Player Model:", playerModelTemplate);
+          console.log("Entity Model:", entityModelTemplate);
         }
       } else adminKeys.length = 0;
     });
 
     function adminSystemMsg(hostText, guestText) {
       appendChat({ system: true, text: 'Admin: ' + hostText });
-      if (guestText) {
-        broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
-      }
+      if (guestText) broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
     }
 
     function adminAction(action) {
@@ -1578,10 +1597,7 @@
           break;
         }
         case 'remove-clark': {
-          if (!clarks.length) {
-            appendChat({ system: true, text: 'Admin: no Clarks to remove.' });
-            return;
-          }
+          if (!clarks.length) { appendChat({ system: true, text: 'Admin: no Clarks to remove.' }); return; }
           removeLastClark();
           adminSystemMsg('Clark removed (' + clarks.length + ' remaining).', 'A Clark has been removed.');
           break;
@@ -1639,7 +1655,6 @@
         }
         case 'close': toggleAdminPanel(false); break;
       }
-
       updateClarkCountUI();
     }
 
@@ -1652,8 +1667,7 @@
       if (started) return;
       started = true;
 
-      myUser = { nick, title };
-      joined = true;
+      myUser = { nick, title }; joined = true;
 
       localLabelSprite = makeLabel(nick, title, '#e0c86a', true);
       viewerVis.add(localLabelSprite);
@@ -1699,8 +1713,7 @@
       if (!joined) return;
       if (e.button !== 0) return;
       if (isInteractiveElement(e.target)) return;
-      holding = true;
-      lastX = e.clientX; lastY = e.clientY;
+      holding = true; lastX = e.clientX; lastY = e.clientY;
       resumeAudio();
     });
     window.addEventListener('mouseup', () => { holding = false; });
@@ -1732,22 +1745,39 @@
     window.addEventListener('resize', resize);
 
     /* ============================================================
-       CLARK PHYSICS (host-only, per Clark)
+       CLARK PHYSICS (HOST ONLY) - TARGETS NEAREST PLAYER
        ============================================================ */
+    function getNearestTarget(x, z) {
+      let bestX = vPos.x, bestZ = vPos.z;
+      let minDist = Infinity;
+      
+      // allPlayers is maintained on the host, containing the host and all guests
+      if (role === 'host') {
+        allPlayers.forEach(p => {
+          const d = Math.hypot(p.x - x, p.z - z);
+          if (d < minDist) {
+            minDist = d;
+            bestX = p.x;
+            bestZ = p.z;
+          }
+        });
+      }
+      return { x: bestX, z: bestZ };
+    }
+
     function updateClarkPhysics(c, dt) {
-      // --- slight random wandering ---
       c.wanderTimer -= dt;
       if (c.wanderTimer <= 0) {
-        c.wanderTimer = 0.8 + Math.random() * 1.8; // change direction every 0.8–2.6s
+        c.wanderTimer = 0.8 + Math.random() * 1.8;
         c.wanderAngle += (Math.random() - 0.5) * Math.PI * 1.2;
       }
 
-      // base direction towards player
-      const pdx = vPos.x - c.pos.x;
-      const pdz = vPos.z - c.pos.z;
+      // Find nearest player dynamically
+      const target = getNearestTarget(c.pos.x, c.pos.z);
+      const pdx = target.x - c.pos.x;
+      const pdz = target.z - c.pos.z;
       const pd = Math.hypot(pdx, pdz) || 1;
 
-      // wander offset (small)
       const wx = Math.cos(c.wanderAngle) * MON_WANDER;
       const wz = Math.sin(c.wanderAngle) * MON_WANDER;
 
@@ -1774,7 +1804,6 @@
         if (dh < -Math.PI) dh += Math.PI * 2;
         c.heading += dh * (1 - Math.exp(-MON_TURN * dt));
       }
-
       c.spd = mspd;
     }
 
@@ -1783,9 +1812,7 @@
       if (!clarks.length) return;
       const caught = [];
 
-      const localCaught = clarks.some(c =>
-        Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1
-      );
+      const localCaught = clarks.some(c => Math.hypot(vPos.x - c.pos.x, vPos.z - c.pos.z) < 1.1);
       if (localCaught) {
         vPos.set(0, 0, 0);
         appendChat({ system: true, text: 'A Clark caught you — back to spawn.' });
@@ -1794,9 +1821,7 @@
 
       allPlayers.forEach((p, id) => {
         if (id === myId) return;
-        const hit = clarks.some(c =>
-          Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1
-        );
+        const hit = clarks.some(c => Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1);
         if (hit) {
           caught.push(id);
           const target = guests.find(g => g.peer === id);
@@ -1810,7 +1835,7 @@
     }
 
     /* ============================================================
-       CLARK VISUAL UPDATE (both host and guest)
+       CLARK VISUALS
        ============================================================ */
     function updateClarkVisuals(dt, k) {
       clarks.forEach(c => {
@@ -1845,7 +1870,14 @@
           c.fallbackRig.armL.rotation.x = -s * 0.8;
           c.fallbackRig.armR.rotation.x = s * 0.8;
         }
-        if (c.mixer) {
+        
+        // Dynamic Animation Speed for Clark Running
+        if (c.mixer && entityModelWalkClip) {
+          const act = c.mixer.clipAction(entityModelWalkClip);
+          if (act) {
+            // Speeds up when running fast, slows slightly when idling
+            act.timeScale = Math.max(0.2, c.spd / 3.0);
+          }
           c.mixer.update(dt);
         }
       });
@@ -1866,6 +1898,7 @@
        ============================================================ */
     const clock = new _T.Clock();
     let vWalk = 0;
+    let frames = 0, lastFpsTime = performance.now();
 
     function step(dt) {
       nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
@@ -1967,6 +2000,18 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       step(dt);
       R.render(scene, cam);
+
+      if (debugMode) {
+        frames++;
+        const now = performance.now();
+        if (now - lastFpsTime >= 1000) {
+          const fps = Math.round((frames * 1000) / (now - lastFpsTime));
+          document.getElementById('dbg-fps').textContent = fps;
+          document.getElementById('dbg-clarks').textContent = clarks.length;
+          frames = 0;
+          lastFpsTime = now;
+        }
+      }
     }
 
     /* ============================================================
