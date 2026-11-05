@@ -7,7 +7,6 @@
   <meta name="description" content="Multiplayer walkthrough in the hussrooms." />
   <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
   <style>
-    /* ----- reset & base ----- */
     * { box-sizing: border-box; }
     html, body {
       margin: 0; height: 100%; background: #0d0a05; overflow: hidden;
@@ -16,14 +15,12 @@
     #stage { position: fixed; inset: 0; cursor: pointer; }
     canvas { display: block; width: 100%; height: 100%; }
 
-    /* ----- hint ----- */
     #hint {
       position: absolute; right: 14px; bottom: 12px;
       color: rgba(255,245,210,0.55); font-size: 11px;
       letter-spacing: .04em; pointer-events: none; user-select: none; text-align: right;
     }
 
-    /* ----- HUD ----- */
     #hud {
       position: absolute; top: 14px; left: 14px; z-index: 5;
       pointer-events: none; user-select: none;
@@ -39,7 +36,6 @@
       margin-top: 6px; letter-spacing: .08em;
     }
 
-    /* ----- chat ----- */
     #chat-panel {
       position: absolute; left: 14px; bottom: 14px;
       width: min(340px, 42vw); max-height: 240px; z-index: 8;
@@ -73,7 +69,6 @@
     #chat-input:focus { border-color: #8a7430; }
     #chat-input:disabled { opacity: 0.35; }
 
-    /* ----- admin panel ----- */
     #admin-panel {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       background: rgba(13,10,5,0.97); border: 1px solid #8a7430;
@@ -110,7 +105,6 @@
       opacity: .75; margin-bottom: 10px; letter-spacing: .08em;
     }
 
-    /* ----- loader ----- */
     #loader {
       position: fixed; inset: 0; background: #0d0a05;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -138,7 +132,6 @@
       max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    /* ----- login ----- */
     #login {
       position: fixed; inset: 0; background: #0d0a05;
       display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -193,7 +186,6 @@
 </head>
 <body>
 
-  <!-- LOGIN -->
   <div id="login">
     <h2>Identify Yourself</h2>
     <div id="user-list"></div>
@@ -202,14 +194,12 @@
     <button id="new-btn">Join as Guest</button>
   </div>
 
-  <!-- LOADER -->
   <div id="loader">
     <div id="loader-title">Preparing Space</div>
     <div id="bar-track"><div id="bar-fill"></div></div>
     <div id="loader-text">booting…</div>
   </div>
 
-  <!-- STAGE / HUD / HINT -->
   <div id="stage">
     <div id="hud">
       <div id="hud-name"></div>
@@ -219,13 +209,11 @@
     <div id="hint">hold click to advance · move mouse to aim · scroll to dolly</div>
   </div>
 
-  <!-- CHAT -->
   <div id="chat-panel">
     <div id="chat-messages"></div>
     <input id="chat-input" placeholder="say something…  (enter to send)" maxlength="200" disabled />
   </div>
 
-  <!-- ADMIN PANEL -->
   <div id="admin-panel">
     <div class="title">
       <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.85 9.74-9 11-5.15-1.26-9-5.75-9-11V6z"/></svg>
@@ -271,14 +259,16 @@
     /* ============================================================
        MODULE LOADING
        ============================================================ */
-    setLoad(3, 'loading: hussrooms/index.html...');
+    setLoad(3, 'loading engine…');
     const TMO = 15000;
     const _ti = (u) => Promise.race([
       import(u),
       new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TMO)),
     ]);
     async function _ta(urls) {
-      for (const u of urls) { try { return await _ti(u); } catch (e) {} }
+      for (const u of urls) {
+        try { return await _ti(u); } catch (e) {}
+      }
       return null;
     }
 
@@ -287,31 +277,42 @@
       'https://esm.sh/three@0.160.0/build/three.module.js',
       'https://unpkg.com/three@0.160.0/build/three.module.js',
     ]);
-    if (!_T) { setLoad(100, 'failed to load engine'); throw new Error('module load failed'); }
-    setLoad(15, 'loading: hussrooms/modules/three.module.js...');
+    if (!_T) {
+      setLoad(100, 'failed to load engine');
+      throw new Error('module load failed');
+    }
+    setLoad(12, 'engine ready');
     await yieldFrame();
 
     let _GL = null, _FL = null, _SU = null;
-    try { const m = await _ta([
-      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-      'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-    ]); if (m) _GL = m.GLTFLoader; } catch (e) {}
-    
-    setLoad(22, 'loading: hussrooms/modules/GLTFLoader.js...');
+    try {
+      const m = await _ta([
+        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+        'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+      ]);
+      if (m) _GL = m.GLTFLoader;
+    } catch (e) {}
+    setLoad(18, 'GLTFLoader…');
     await yieldFrame();
-    try { const m = await _ta([
-      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
-      'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
-    ]); if (m) _FL = m.FBXLoader; } catch (e) {}
-    
-    setLoad(28, 'loading: hussrooms/modules/FBXLoader.js...');
+
+    try {
+      const m = await _ta([
+        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+        'https://esm.sh/three@0.160.0/examples/jsm/loaders/FBXLoader.js',
+      ]);
+      if (m) _FL = m.FBXLoader;
+    } catch (e) {}
+    setLoad(24, 'FBXLoader…');
     await yieldFrame();
-    try { const m = await _ta([
-      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
-      'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
-    ]); if (m && typeof m.clone === 'function') _SU = m.clone; } catch (e) {}
-    
-    setLoad(30, 'building scene...');
+
+    try {
+      const m = await _ta([
+        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+        'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+      ]);
+      if (m && typeof m.clone === 'function') _SU = m.clone;
+    } catch (e) {}
+    setLoad(28, 'building scene…');
     await yieldFrame();
 
     /* ============================================================
@@ -329,16 +330,15 @@
 
     const scene = new _T.Scene();
     scene.background = new _T.Color(0x0d0a05);
-    
+
     const cam = new _T.PerspectiveCamera(70, 1, 0.05, 150);
 
-    // Pre-allocated objects for loop optimization
     const _vHead = new _T.Vector3();
     const _vTarget = new _T.Vector3();
     const _vDir = new _T.Vector3();
     const _m3 = new _T.Matrix4();
     const _q3 = new _T.Quaternion();
-    const _e1 = new _T.Euler(0,0,0,'YXZ');
+    const _e1 = new _T.Euler(0, 0, 0, 'YXZ');
     const _q1 = new _T.Quaternion();
     const _up = new _T.Vector3(0, 1, 0);
 
@@ -346,32 +346,41 @@
        PROCEDURAL TEXTURES
        ============================================================ */
     function tex(w, h, draw) {
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
       draw(c.getContext('2d'), w, h);
       const t = new _T.CanvasTexture(c);
       t.colorSpace = _T.SRGBColorSpace;
-      t.wrapS = t.wrapT = _T.RepeatWrapping; t.anisotropy = 4;
+      t.wrapS = t.wrapT = _T.RepeatWrapping;
+      t.anisotropy = 4;
       return t;
     }
 
-    setLoad(36, 'generating: hussrooms/assets/walls_texture.png...');
+    setLoad(34, 'walls…');
     await yieldFrame();
 
     const wallTex = tex(512, 512, (ctx, w, h) => {
-      ctx.fillStyle = '#c4b06a'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#c4b06a';
+      ctx.fillRect(0, 0, w, h);
       for (let x = 0; x < w; x += 32) {
-        ctx.fillStyle = 'rgba(255,248,200,.05)'; ctx.fillRect(x, 0, 16, h);
-        ctx.fillStyle = 'rgba(60,45,12,.05)'; ctx.fillRect(x + 16, 0, 16, h);
+        ctx.fillStyle = 'rgba(255,248,200,.05)';
+        ctx.fillRect(x, 0, 16, h);
+        ctx.fillStyle = 'rgba(60,45,12,.05)';
+        ctx.fillRect(x + 16, 0, 16, h);
       }
       const img = ctx.getImageData(0, 0, w, h), d = img.data;
-      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - .5) * 18;
+        d[i] += n; d[i + 1] += n; d[i + 2] += n * .7;
+      }
       ctx.putImageData(img, 0, 0);
       for (let i = 0; i < 30; i++) {
         const x = Math.random() * w, y = Math.random() * h, r = 20 + Math.random() * 85;
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
         g.addColorStop(0, `rgba(110,82,28,${.05 + Math.random() * .1})`);
         g.addColorStop(1, 'rgba(110,82,28,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
       const bh = h * .05;
       ctx.fillStyle = '#6e5a35'; ctx.fillRect(0, h - bh, w, bh);
@@ -379,18 +388,23 @@
       ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, h - 2, w, 2);
     });
 
-    setLoad(44, 'generating: hussrooms/assets/floor_texture.png...');
+    setLoad(42, 'floor…');
     await yieldFrame();
 
     const floorTex = tex(256, 256, (ctx, w, h) => {
-      ctx.fillStyle = '#9a8738'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#9a8738';
+      ctx.fillRect(0, 0, w, h);
       const img = ctx.getImageData(0, 0, w, h), d = img.data;
-      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * 44; d[i] += n; d[i + 1] += n; d[i + 2] += n * .7; }
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - .5) * 44;
+        d[i] += n; d[i + 1] += n; d[i + 2] += n * .7;
+      }
       ctx.putImageData(img, 0, 0);
       for (let i = 0; i < 900; i++) {
         const x = Math.random() * w, y = Math.random() * h, l = 2 + Math.random() * 4, a = Math.random() * Math.PI;
         ctx.strokeStyle = `rgba(${60 + Math.random() * 90},${55 + Math.random() * 80},${15 + Math.random() * 40},${.12 + Math.random() * .2})`;
-        ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.lineWidth = .7;
+        ctx.beginPath(); ctx.moveTo(x, y);
         ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
       }
       for (let i = 0; i < 22; i++) {
@@ -398,15 +412,17 @@
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
         g.addColorStop(0, `rgba(50,38,12,${.08 + Math.random() * .14})`);
         g.addColorStop(1, 'rgba(50,38,12,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
     });
 
-    setLoad(51, 'generating: hussrooms/assets/ceiling_texture.png...');
+    setLoad(48, 'ceiling…');
     await yieldFrame();
 
     const ceilTex = tex(256, 256, (ctx, w, h) => {
-      ctx.fillStyle = '#d3caa0'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#d3caa0';
+      ctx.fillRect(0, 0, w, h);
       const t = w / 2;
       for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
         ctx.fillStyle = `rgba(${180 + Math.random() * 30},${170 + Math.random() * 30},${120 + Math.random() * 40},.22)`;
@@ -418,12 +434,16 @@
           ctx.fill();
         }
       }
-      ctx.strokeStyle = 'rgba(80,70,38,.5)'; ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(80,70,38,.5)';
+      ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, w, h);
-      ctx.beginPath(); ctx.moveTo(t, 0); ctx.lineTo(t, h); ctx.moveTo(0, t); ctx.lineTo(w, t); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(t, 0); ctx.lineTo(t, h);
+      ctx.moveTo(0, t); ctx.lineTo(w, t);
+      ctx.stroke();
     });
 
-    setLoad(58, 'setting up: hussrooms/assets/lights...');
+    setLoad(54, 'lights…');
     await yieldFrame();
 
     /* ============================================================
@@ -431,15 +451,18 @@
        ============================================================ */
     scene.add(new _T.HemisphereLight(0xfff0b8, 0x2b240d, 1.05));
     const key = new _T.DirectionalLight(0xfff4cc, 1.35);
-    key.position.set(4, 12, 4); key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0012;
+    key.position.set(4, 12, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.bias = -0.0012;
     const sc = key.shadow.camera;
     sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 50;
-    scene.add(key); scene.add(key.target);
+    scene.add(key);
+    scene.add(key.target);
     const focus = new _T.PointLight(0xffe8a8, 14, 15, 2);
     scene.add(focus);
 
-    setLoad(64, 'building: hussrooms/assets/map...');
+    setLoad(60, 'map…');
     await yieldFrame();
 
     /* ============================================================
@@ -449,14 +472,12 @@
     const SAFE_RADIUS = 15;
     const boxes = [];
 
-    // Visual Safe Zone
     const safeGeo = new _T.CylinderGeometry(SAFE_RADIUS, SAFE_RADIUS, 0.2, 32);
     const safeMat = new _T.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.25, depthWrite: false });
     const safeMesh = new _T.Mesh(safeGeo, safeMat);
     safeMesh.position.y = 0.1;
     scene.add(safeMesh);
 
-    // Safe zone border ring
     const ringGeo = new _T.RingGeometry(SAFE_RADIUS - 0.2, SAFE_RADIUS, 64);
     const ringMat = new _T.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.6, side: _T.DoubleSide });
     const ringMesh = new _T.Mesh(ringGeo, ringMat);
@@ -470,29 +491,35 @@
         new _T.MeshStandardMaterial({ map: wallTex, roughness: .95 })
       );
       m.position.set(x, WH / 2, z);
-      m.castShadow = true; m.receiveShadow = true;
+      m.castShadow = true;
+      m.receiveShadow = true;
       scene.add(m);
-      boxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+      boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
     }
 
-    wall(0, -MS/2, MS, WT);
-    wall(0, MS/2, MS, WT);
-    wall(-MS/2, 0, WT, MS);
-    wall(MS/2, 0, WT, MS);
+    wall(0, -MS / 2, MS, WT);
+    wall(0, MS / 2, MS, WT);
+    wall(-MS / 2, 0, WT, MS);
+    wall(MS / 2, 0, WT, MS);
 
-    for (let x = -MS/2 + 20; x < MS/2 - 20; x += 25) {
-      for (let z = -MS/2 + 20; z < MS/2 - 20; z += 25) {
+    for (let x = -MS / 2 + 20; x < MS / 2 - 20; x += 25) {
+      for (let z = -MS / 2 + 20; z < MS / 2 - 20; z += 25) {
         if (Math.hypot(x, z) < SAFE_RADIUS + 10) continue;
         const r = Math.random();
         if (r < 0.3) {
-          wall(x, z, 10, 1.5); wall(x - 4.5, z - 4.5, 1.5, 10);
+          wall(x, z, 10, 1.5);
+          wall(x - 4.5, z - 4.5, 1.5, 10);
         } else if (r < 0.6) {
-          wall(x, z, 12, 2); wall(x, z, 2, 12);
+          wall(x, z, 12, 2);
+          wall(x, z, 2, 12);
         } else if (r < 0.8) {
-          wall(x, z, 14, 1.5); wall(x + 7, z + 7, 1.5, 14);
+          wall(x, z, 14, 1.5);
+          wall(x + 7, z + 7, 1.5, 14);
         } else {
-          wall(x-2, z-2, 2.5, 2.5); wall(x+2, z-2, 2.5, 2.5);
-          wall(x-2, z+2, 2.5, 2.5); wall(x+2, z+2, 2.5, 2.5);
+          wall(x - 2, z - 2, 2.5, 2.5);
+          wall(x + 2, z - 2, 2.5, 2.5);
+          wall(x - 2, z + 2, 2.5, 2.5);
+          wall(x + 2, z + 2, 2.5, 2.5);
         }
       }
     }
@@ -501,23 +528,30 @@
       new _T.PlaneGeometry(MS * 2, MS * 2),
       new _T.MeshStandardMaterial({ map: floorTex, roughness: 1 })
     );
-    fl.rotation.x = -Math.PI / 2; fl.receiveShadow = true; scene.add(fl);
+    fl.rotation.x = -Math.PI / 2;
+    fl.receiveShadow = true;
+    scene.add(fl);
 
     const ce = new _T.Mesh(
       new _T.PlaneGeometry(MS * 2, MS * 2),
       new _T.MeshStandardMaterial({ map: ceilTex, roughness: 1, side: _T.DoubleSide })
     );
-    ce.rotation.x = Math.PI / 2; ce.position.y = WH; ce.receiveShadow = true; scene.add(ce);
+    ce.rotation.x = Math.PI / 2;
+    ce.position.y = WH;
+    ce.receiveShadow = true;
+    scene.add(ce);
 
     const lm = new _T.MeshBasicMaterial({ color: 0xfff6c4 });
-    for (let x = -MS/2; x <= MS/2; x += 20) {
-      for (let z = -MS/2; z <= MS/2; z += 20) {
+    for (let x = -MS / 2; x <= MS / 2; x += 20) {
+      for (let z = -MS / 2; z <= MS / 2; z += 20) {
         const p = new _T.Mesh(new _T.PlaneGeometry(2.5, 2.5), lm);
-        p.rotation.x = Math.PI / 2; p.position.set(x, WH - 0.02, z); scene.add(p);
+        p.rotation.x = Math.PI / 2;
+        p.position.set(x, WH - 0.02, z);
+        scene.add(p);
       }
     }
 
-    setLoad(72, 'building: hussrooms/assets/fallback_rigs...');
+    setLoad(68, 'rigs…');
     await yieldFrame();
 
     /* ============================================================
@@ -525,13 +559,18 @@
        ============================================================ */
     const mkBox = (w, h, d, mat) => {
       const m = new _T.Mesh(new _T.BoxGeometry(w, h, d), mat);
-      m.castShadow = true; m.receiveShadow = true; return m;
+      m.castShadow = true;
+      m.receiveShadow = true;
+      return m;
     };
 
-    const viewer = new _T.Group(); scene.add(viewer);
-    const viewerVis = new _T.Group(); viewer.add(viewerVis);
+    const viewer = new _T.Group();
+    scene.add(viewer);
+    const viewerVis = new _T.Group();
+    viewer.add(viewerVis);
 
-    const clarkGroup = new _T.Group(); scene.add(clarkGroup);
+    const clarkGroup = new _T.Group();
+    scene.add(clarkGroup);
 
     let vRig = null, vMix = null;
     let localLabelSprite = null;
@@ -556,12 +595,21 @@
       const to = mkBox(.7, .7, .36, sh); to.position.y = 1.05; root.add(to);
       const hd = mkBox(.42, .42, .42, sk); hd.position.y = 1.62; root.add(hd);
       const lb = (x, y, w, h, d, mat) => {
-        const p = new _T.Group(); p.position.set(x, y, 0);
-        const m = mkBox(w, h, d, mat); m.position.y = -h / 2; p.add(m); root.add(p); return p;
+        const p = new _T.Group();
+        p.position.set(x, y, 0);
+        const m = mkBox(w, h, d, mat);
+        m.position.y = -h / 2;
+        p.add(m);
+        root.add(p);
+        return p;
       };
-      return { root,
-        armL: lb(-.49, 1.4, .24, .66, .24, sk), armR: lb(.49, 1.4, .24, .66, .24, sk),
-        legL: lb(-.17, .7, .27, .7, .3, pn), legR: lb(.17, .7, .27, .7, .3, pn) };
+      return {
+        root,
+        armL: lb(-.49, 1.4, .24, .66, .24, sk),
+        armR: lb(.49, 1.4, .24, .66, .24, sk),
+        legL: lb(-.17, .7, .27, .7, .3, pn),
+        legR: lb(.17, .7, .27, .7, .3, pn)
+      };
     }
 
     function buildClarkFallbackRig() {
@@ -571,9 +619,9 @@
       const ey = new _T.MeshStandardMaterial({ color: 0xff0000, emissive: 0x880000 });
       const ll = 1.0;
       const lL = new _T.Group(); lL.position.set(-.2, 1.0, 0); root.add(lL);
-      const lLM = mkBox(.25, ll, .25, su); lLM.position.y = -ll/2; lL.add(lLM);
+      const lLM = mkBox(.25, ll, .25, su); lLM.position.y = -ll / 2; lL.add(lLM);
       const lR = new _T.Group(); lR.position.set(.2, 1.0, 0); root.add(lR);
-      const lRM = mkBox(.25, ll, .25, su); lRM.position.y = -ll/2; lR.add(lRM);
+      const lRM = mkBox(.25, ll, .25, su); lRM.position.y = -ll / 2; lR.add(lRM);
       const to = mkBox(.65, .9, .35, su); to.position.y = 1.5; root.add(to);
       const hd = mkBox(.4, .4, .4, sk); hd.position.y = 2.15; root.add(hd);
       const eL = new _T.Mesh(new _T.SphereGeometry(.06, 10, 10), ey); eL.position.set(-.1, 2.2, .21); root.add(eL);
@@ -585,7 +633,8 @@
       return { root, armL: aL, armR: aR, legL: lL, legR: lR };
     }
 
-    vRig = buildVRig(); viewerVis.add(vRig.root);
+    vRig = buildVRig();
+    viewerVis.add(vRig.root);
 
     /* ============================================================
        NAME LABELS & SPEECH BUBBLES
@@ -655,40 +704,33 @@
       c.width = 512; c.height = 128;
       const ctx = c.getContext('2d');
 
-      // Draw shadow
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 12;
       ctx.shadowOffsetY = 6;
 
-      // Draw rounded rect background
       ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.beginPath();
       if (ctx.roundRect) {
-         ctx.roundRect(16, 10, 480, 80, 16);
+        ctx.roundRect(16, 10, 480, 80, 16);
       } else {
-         ctx.rect(16, 10, 480, 80); // fallback
+        ctx.rect(16, 10, 480, 80);
       }
       ctx.fill();
 
-      // Draw tail
       ctx.beginPath();
       ctx.moveTo(236, 90);
       ctx.lineTo(256, 122);
       ctx.lineTo(276, 90);
       ctx.fill();
 
-      // Reset shadow for text
       ctx.shadowColor = 'transparent';
-
       ctx.fillStyle = '#222';
       ctx.font = 'bold 28px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Trim long text
       let displayText = text;
-      if (displayText.length > 28) displayText = displayText.slice(0, 25) + '...';
-      
+      if (displayText.length > 28) displayText = displayText.slice(0, 25) + '…';
       ctx.fillText(displayText, 256, 50);
 
       const tex = new _T.CanvasTexture(c);
@@ -696,26 +738,32 @@
       const mat = new _T.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
       const sprite = new _T.Sprite(mat);
       sprite.scale.set(2.2, 0.55, 1);
-      sprite.position.y = 3.2; // Above name label
+      sprite.position.y = 3.2;
       sprite.renderOrder = 1000;
       return sprite;
+    }
+
+    function disposeSprite(sprite) {
+      if (!sprite) return;
+      if (sprite.material) {
+        if (sprite.material.map) sprite.material.map.dispose();
+        sprite.material.dispose();
+      }
     }
 
     function showLocalBubble(text) {
       if (localBubble) {
         viewerVis.remove(localBubble);
-        localBubble.material.map.dispose();
-        localBubble.material.dispose();
+        disposeSprite(localBubble);
       }
       localBubble = makeSpeechBubble(text);
       viewerVis.add(localBubble);
-      
+
       clearTimeout(localBubbleTimer);
       localBubbleTimer = setTimeout(() => {
         if (localBubble) {
           viewerVis.remove(localBubble);
-          localBubble.material.map.dispose();
-          localBubble.material.dispose();
+          disposeSprite(localBubble);
           localBubble = null;
         }
       }, 4000);
@@ -724,22 +772,20 @@
     function showRemoteBubble(id, text) {
       const av = remoteAvatars.get(id);
       if (!av) return;
-      
+
       if (av.bubble) {
         av.root.remove(av.bubble);
-        av.bubble.material.map.dispose();
-        av.bubble.material.dispose();
+        disposeSprite(av.bubble);
       }
-      
+
       av.bubble = makeSpeechBubble(text);
       av.root.add(av.bubble);
-      
+
       clearTimeout(av.bubbleTimer);
       av.bubbleTimer = setTimeout(() => {
         if (av.bubble) {
           av.root.remove(av.bubble);
-          av.bubble.material.map.dispose();
-          av.bubble.material.dispose();
+          disposeSprite(av.bubble);
           av.bubble = null;
         }
       }, 4000);
@@ -751,13 +797,13 @@
     function cloneModel(source) {
       if (!source) return null;
       if (_SU) {
-        try { return _SU(source); } catch (e) { console.warn('SkeletonUtils.clone failed', e); }
+        try { return _SU(source); } catch (e) {}
       }
       try {
         let isSkinned = false;
         source.traverse(o => { if (o.isSkinnedMesh) isSkinned = true; });
         if (!isSkinned) return source.clone(true);
-      } catch (e) { console.warn('clone fallback failed', e); }
+      } catch (e) {}
       return null;
     }
 
@@ -782,17 +828,24 @@
       });
     }
 
+    function disposeObject(obj) {
+      if (!obj) return;
+      obj.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) o.material.forEach(m => m && m.dispose && m.dispose());
+          else if (o.material.dispose) o.material.dispose();
+        }
+      });
+    }
+
     /* ============================================================
        ASSET LOADING
        ============================================================ */
     const BASE = './assets';
 
     function getPaths(variants) {
-      const paths = [];
-      for (const f of variants) {
-        paths.push(`${BASE}/${f}`);
-      }
-      return paths;
+      return variants.map(f => `${BASE}/${f}`);
     }
 
     function expand(ps) {
@@ -813,9 +866,10 @@
           const url = list[i++];
           if (onProgress) onProgress(url);
           ld.load(url, t => {
-            t.colorSpace = _T.SRGBColorSpace; t.anisotropy = 4;
-            t.wrapS = t.wrapT = _T.RepeatWrapping; res(t);
-            console.log('[assets] Loaded texture:', url);
+            t.colorSpace = _T.SRGBColorSpace;
+            t.anisotropy = 4;
+            t.wrapS = t.wrapT = _T.RepeatWrapping;
+            res(t);
           }, undefined, next);
         };
         next();
@@ -830,35 +884,40 @@
           if (ext === 'fbx' && _FL) {
             const loader = new _FL();
             const obj = await loader.loadAsync(url);
-            console.log('[assets] Loaded FBX model:', url);
             return { object: obj, animations: obj.animations || [] };
           }
           if ((ext === 'glb' || ext === 'gltf') && _GL) {
             const loader = new _GL();
             const g = await loader.loadAsync(url);
-            console.log('[assets] Loaded GLTF/GLB model:', url);
             return { object: g.scene, animations: g.animations || [] };
           }
-        } catch (e) {
-          console.warn('[assets] Failed 404/Error:', url);
-        }
+        } catch (e) {}
       }
       return null;
     }
 
     function fit(obj, height) {
       obj.updateMatrixWorld(true);
-      let b = new _T.Box3().setFromObject(obj), s = new _T.Vector3(); b.getSize(s);
-      if (s.y > 1e-5) { obj.scale.multiplyScalar(height / s.y); obj.updateMatrixWorld(true); b = new _T.Box3().setFromObject(obj); }
-      const c = new _T.Vector3(); b.getCenter(c);
-      obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b.min.y;
+      let b = new _T.Box3().setFromObject(obj), s = new _T.Vector3();
+      b.getSize(s);
+      if (s.y > 1e-5) {
+        obj.scale.multiplyScalar(height / s.y);
+        obj.updateMatrixWorld(true);
+        b = new _T.Box3().setFromObject(obj);
+      }
+      const c = new _T.Vector3();
+      b.getCenter(c);
+      obj.position.x -= c.x;
+      obj.position.z -= c.z;
+      obj.position.y -= b.min.y;
       return obj;
     }
 
     function prep(obj, fbTex) {
       obj.traverse(o => {
         if (!o.isMesh) return;
-        o.castShadow = true; o.receiveShadow = true;
+        o.castShadow = true;
+        o.receiveShadow = true;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) {
           if (!m) continue;
@@ -876,7 +935,9 @@
     function loadAudio(url, onProgress) {
       return new Promise(res => {
         const a = new Audio();
-        a.preload = 'auto'; a.loop = true; a.volume = 0;
+        a.preload = 'auto';
+        a.loop = true;
+        a.volume = 0;
         let done = false;
         const finish = (ok) => { if (done) return; done = true; res(ok ? a : null); };
         a.addEventListener('canplaythrough', () => finish(true), { once: true });
@@ -889,44 +950,50 @@
     }
 
     async function loadAllAssets() {
-      setLoad(76, 'setting up: hussrooms/index.html...'); await yieldFrame();
-      setLoad(78, 'loading: hussrooms/assets/player.fbx...'); await yieldFrame();
-      
-      const playerPaths = getPaths([
-        'player.fbx', 'Player.fbx', 'player.glb', 'player.gltf'
-      ]);
+      setLoad(72, 'player model…');
+      await yieldFrame();
+
+      const playerPaths = getPaths(['player.fbx', 'Player.fbx', 'player.glb', 'player.gltf']);
       const playerTexPaths = getPaths([
-        'texter/player/shaded',
-        'texter/player/player',
-        'texter/player/texture',
-        'texter/player'
+        'texter/player/shaded', 'texter/player/player',
+        'texter/player/texture', 'texter/player'
       ]);
 
       const [vM, vT] = await Promise.all([
-        firstModel(playerPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`)),
-        firstTex(playerTexPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`))
+        firstModel(playerPaths, (url) => setLoad(loadPct, `loading ${url.replace('./', '')}…`)),
+        firstTex(playerTexPaths, (url) => setLoad(loadPct, `loading ${url.replace('./', '')}…`))
       ]);
 
-      setLoad(84, 'applying: hussrooms/assets/player.fbx...'); await yieldFrame();
+      setLoad(80, 'applying player…');
+      await yieldFrame();
       if (vM) {
-        const m = fit(vM.object, playerModelHeight); prep(m, vT);
-        if (vRig) { viewerVis.remove(vRig.root); vRig = null; }
+        const m = fit(vM.object, playerModelHeight);
+        prep(m, vT);
+        if (vRig) {
+          viewerVis.remove(vRig.root);
+          disposeObject(vRig.root);
+          vRig = null;
+        }
         viewerVis.add(m);
         playerModelTemplate = m;
         playerModelAnimations = vM.animations || [];
         if (vM.animations.length) {
           vMix = new _T.AnimationMixer(m);
           const ic = vM.animations.find(c => /idle|stand/i.test(c.name)) || vM.animations[0];
-          if (ic) { vMix.clipAction(ic).play(); playerModelIdleClip = ic; }
+          if (ic) {
+            vMix.clipAction(ic).play();
+            playerModelIdleClip = ic;
+          }
         }
-      } else {
-        if (vRig && !viewerVis.children.includes(vRig.root)) viewerVis.add(vRig.root);
+      } else if (vRig && !viewerVis.children.includes(vRig.root)) {
+        viewerVis.add(vRig.root);
       }
 
-      setLoad(88, 'loading: hussrooms/assets/entaty.glb...'); await yieldFrame();
-      
+      setLoad(86, 'entity model…');
+      await yieldFrame();
+
       const entityPaths = getPaths([
-        'entaty.glb', 'entaty.gltf', 'entity.glb', 'entity.gltf', 'entaty.fbx'
+        'entaty.glb', 'entaty.gltf', 'entity.glb', 'entity.gltf', 'entaty.fbx', 'entity.fbx'
       ]);
       const entityTexPaths = getPaths([
         'texter/entaty/entaty', 'texter/entaty/texture', 'texter/entaty',
@@ -934,16 +1001,17 @@
       ]);
 
       const [eM, eT] = await Promise.all([
-        firstModel(entityPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`)),
-        firstTex(entityTexPaths, (url) => setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`))
+        firstModel(entityPaths, (url) => setLoad(loadPct, `loading ${url.replace('./', '')}…`)),
+        firstTex(entityTexPaths, (url) => setLoad(loadPct, `loading ${url.replace('./', '')}…`))
       ]);
 
-      setLoad(93, 'applying: hussrooms/assets/entaty.glb...'); await yieldFrame();
+      setLoad(92, 'applying entity…');
+      await yieldFrame();
       if (eM) {
-        const m = fit(eM.object, entityModelHeight); prep(m, eT);
+        const m = fit(eM.object, entityModelHeight);
+        prep(m, eT);
         entityModelTemplate = m;
         entityModelAnimations = eM.animations || [];
-        
         if (entityModelAnimations.length) {
           let rc = entityModelAnimations.find(c => /run|sprint/i.test(c.name));
           if (!rc) rc = entityModelAnimations.find(c => /walk|move/i.test(c.name));
@@ -952,16 +1020,18 @@
         }
       }
 
-      setLoad(96, 'loading: hussrooms/assets/sounds/theme.mp3...'); await yieldFrame();
-      
+      setLoad(96, 'theme audio…');
+      await yieldFrame();
+
       const audioPaths = getPaths(['sounds/theme.mp3', 'theme.mp3']);
       for (const url of audioPaths) {
-        setLoad(loadPct, `loading: ${url.replace('./', 'hussrooms/')}...`);
-        themeEl = await loadAudio(url, () => setLoad(98, 'decoding: hussrooms/assets/sounds/theme.mp3...'));
+        setLoad(loadPct, `loading ${url.replace('./', '')}…`);
+        themeEl = await loadAudio(url);
         if (themeEl) break;
       }
 
-      setLoad(99, 'finishing: hussrooms/index.html...'); await yieldFrame();
+      setLoad(99, 'finishing…');
+      await yieldFrame();
       setLoad(100, 'ready');
     }
 
@@ -974,21 +1044,23 @@
     let tYaw = 0, tPitch = 0.18, tDist = 8.5;
 
     let holding = false;
-    const MOVE_SPEED = 16.0; 
+    const MOVE_SPEED = 16.0;
     const vHeading = { y: Math.PI };
 
-    const MON_ACCEL   = 60;
-    const MON_MAXSPD  = 16.0;
+    const MON_ACCEL = 60;
+    const MON_MAXSPD = 16.0;
     const MON_FRICTION = 0.35;
-    const MON_TURN     = 4.0;
+    const MON_TURN = 4.0;
 
     const MAX_CLARKS = 25;
-    const clarks = [];   
+    const clarks = [];
     let clarkImmunity = false;
 
-    function makeClarkId() { return 'c' + Math.random().toString(36).slice(2, 9); }
+    function makeClarkId() {
+      return 'c' + Math.random().toString(36).slice(2, 9);
+    }
 
-    function spawnClark(x, z) {
+    function spawnClark(x, z, forcedId = null) {
       if (clarks.length >= MAX_CLARKS) return null;
 
       let root = null;
@@ -1012,7 +1084,7 @@
         root = fallbackRig.root;
       }
 
-      const id = makeClarkId();
+      const id = forcedId || makeClarkId();
       if (x == null || z == null) {
         let tries = 0;
         do {
@@ -1031,7 +1103,7 @@
         id, pos: new _T.Vector3(x, 0, z), vel: new _T.Vector3(0, 0, 0),
         heading, phase: Math.random() * Math.PI * 2, spd: 0,
         root, mixer, fallbackRig,
-        wanderAngle: Math.random() * Math.PI * 2, 
+        wanderAngle: Math.random() * Math.PI * 2,
         stateTimer: 0,
         state: 'wander',
         wanderTarget: new _T.Vector3(x, 0, z)
@@ -1045,8 +1117,11 @@
       const i = clarks.findIndex(c => c.id === id);
       if (i < 0) return;
       const c = clarks[i];
-      if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+      if (c.mixer) {
+        try { c.mixer.stopAllAction(); } catch (e) {}
+      }
       clarkGroup.remove(c.root);
+      disposeObject(c.root);
       clarks.splice(i, 1);
       clarkTargets.delete(id);
       updateClarkCountUI();
@@ -1060,8 +1135,11 @@
     function clearAllClarks() {
       while (clarks.length) {
         const c = clarks.pop();
-        if (c.mixer) { try { c.mixer.stopAllAction(); } catch (e) {} }
+        if (c.mixer) {
+          try { c.mixer.stopAllAction(); } catch (e) {}
+        }
         clarkGroup.remove(c.root);
+        disposeObject(c.root);
         clarkTargets.delete(c.id);
       }
       updateClarkCountUI();
@@ -1092,10 +1170,13 @@
 
     let nWall = [], nTimer = 0;
     function refreshNear() {
-      const R2 = 15; nWall.length = 0;
+      const R2 = 15;
+      nWall.length = 0;
       for (const w of boxes) {
         if (vPos.x > w.minX - R2 && vPos.x < w.maxX + R2 &&
-            vPos.z > w.minZ - R2 && vPos.z < w.maxZ + R2) nWall.push(w);
+            vPos.z > w.minZ - R2 && vPos.z < w.maxZ + R2) {
+          nWall.push(w);
+        }
       }
     }
 
@@ -1113,8 +1194,10 @@
           let nx = 0, nz = 0;
           if (d2 > 1e-9) {
             const d = Math.sqrt(d2), push = (rad - d) / d;
-            pos.x += dx * push; pos.z += dz * push;
-            nx = dx / d; nz = dz / d;
+            pos.x += dx * push;
+            pos.z += dz * push;
+            nx = dx / d;
+            nz = dz / d;
           } else {
             const dl = pos.x - w.minX, dr = w.maxX - pos.x, dt = pos.z - w.minZ, db = w.maxZ - pos.z;
             const m = Math.min(dl, dr, dt, db);
@@ -1126,8 +1209,10 @@
           if (vel) {
             const dot = vel.x * nx + vel.z * nz;
             if (dot < 0) {
-              vel.x -= dot * nx; vel.z -= dot * nz;
-              vel.x *= 0.98; vel.z *= 0.98;
+              vel.x -= dot * nx;
+              vel.z -= dot * nz;
+              vel.x *= 0.98;
+              vel.z *= 0.98;
             }
           }
         }
@@ -1150,7 +1235,7 @@
     }
 
     /* ============================================================
-       AUTH — boblox.users & boblox.username
+       AUTH
        ============================================================ */
     const USERS_KEY = 'boblox.users';
     const USERNAME_KEY = 'boblox.username';
@@ -1175,8 +1260,8 @@
 
     function showLogin() {
       let autoNick = null;
-      try { autoNick = localStorage.getItem(USERNAME_KEY); } catch(e){}
-      
+      try { autoNick = localStorage.getItem(USERNAME_KEY); } catch (e) {}
+
       if (autoNick) {
         startGame(autoNick.trim().slice(0, 16), 'Explorer');
         return;
@@ -1220,8 +1305,9 @@
     /* ============================================================
        MULTIPLAYER NETWORKING
        ============================================================ */
-    const ROOM_ID = 'hussrooms-mp-v4';
-    let peer = null, role = null, hostConn = null, guests = [], myId = null, hostId = null, netAccum = 0, retryLock = false;
+    const ROOM_ID = 'hussrooms-mp-v5';
+    let peer = null, role = null, hostConn = null, guests = [], myId = null, hostId = null;
+    let netAccum = 0, retryLock = false;
 
     const allPlayers = new Map();
     const remotePlayers = new Map();
@@ -1256,12 +1342,15 @@
 
       p.on('open', (id) => {
         if (peer !== p) return;
-        myId = id; hostId = id; role = 'host';
+        myId = id;
+        hostId = id;
+        role = 'host';
         allPlayers.set(myId, {
           nick: myUser.nick, title: myUser.title,
           x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y, spd: 0, isHost: true,
         });
         updateOnlineCount();
+        updateLocalLabel();
         appendChat({ system: true, text: 'You are hosting the room as ' + myUser.nick + '.' });
       });
 
@@ -1277,7 +1366,9 @@
         }
       });
 
-      p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
+      p.on('disconnected', () => {
+        try { p.reconnect(); } catch (e) {}
+      });
     }
 
     function joinAsGuest() {
@@ -1301,6 +1392,7 @@
           if (peer !== p) return;
           role = 'guest';
           updateOnlineCount();
+          updateLocalLabel();
           appendChat({ system: true, text: 'Joined the room as ' + myUser.nick + '.' });
           sendGuestUpdate();
         });
@@ -1311,7 +1403,9 @@
       });
 
       p.on('error', () => { if (peer === p) scheduleRetry(); });
-      p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
+      p.on('disconnected', () => {
+        try { p.reconnect(); } catch (e) {}
+      });
     }
 
     function onGuest(conn) {
@@ -1375,7 +1469,10 @@
           else remotePlayers.set(conn.peer, data);
         }
       } else if (msg.type === 'chat') {
-        const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+        const cm = {
+          nick: msg.nick, title: msg.title, text: msg.text,
+          fromId: conn.peer
+        };
         appendChat(cm);
         chatHistory.push(cm);
         if (chatHistory.length > MAX_CHAT) chatHistory.shift();
@@ -1397,8 +1494,7 @@
             seen.add(sc.id);
             let c = clarks.find(x => x.id === sc.id);
             if (!c) {
-              const created = spawnClark(sc.x, sc.z);
-              if (created) { created.id = sc.id; c = created; }
+              c = spawnClark(sc.x, sc.z, sc.id);
             }
             if (c) clarkTargets.set(sc.id, sc);
           });
@@ -1429,14 +1525,17 @@
         }
         updateOnlineCount();
       } else if (msg.type === 'chat') {
-        const cm = { nick: msg.nick, title: msg.title, text: msg.text };
+        const cm = { nick: msg.nick, title: msg.title, text: msg.text, fromId: msg.fromId };
         appendChat(cm);
         chatHistory.push(cm);
         if (chatHistory.length > MAX_CHAT) chatHistory.shift();
-        
-        const senderEntry = Array.from(remotePlayers.entries()).find(([_, p]) => p.nick === msg.nick);
-        if (senderEntry) {
-          showRemoteBubble(senderEntry[0], cm.text);
+
+        if (msg.fromId && remoteAvatars.has(msg.fromId)) {
+          showRemoteBubble(msg.fromId, cm.text);
+        } else {
+          // fallback by nick
+          const senderEntry = Array.from(remotePlayers.entries()).find(([_, p]) => p.nick === msg.nick);
+          if (senderEntry) showRemoteBubble(senderEntry[0], cm.text);
         }
       } else if (msg.type === 'caught') {
         if (msg.id === myId) {
@@ -1445,7 +1544,10 @@
         }
       } else if (msg.type === 'kicked') {
         appendChat({ system: true, text: 'You were removed from the room by the host.' });
-        joined = false; destroyPeer(); role = null; setHudStatus('○ kicked');
+        joined = false;
+        destroyPeer();
+        role = null;
+        setHudStatus('○ kicked');
       }
     }
 
@@ -1466,7 +1568,11 @@
         clarkImmunity, players,
       };
 
-      guests.forEach(g => { if (g.open) { try { g.send(msg); } catch (e) {} } });
+      guests.forEach(g => {
+        if (g.open) {
+          try { g.send(msg); } catch (e) {}
+        }
+      });
     }
 
     function sendGuestUpdate() {
@@ -1480,12 +1586,20 @@
     }
 
     function broadcastToGuests(msg, exclude) {
-      guests.forEach(g => { if (g !== exclude && g.open) { try { g.send(msg); } catch (e) {} } });
+      guests.forEach(g => {
+        if (g !== exclude && g.open) {
+          try { g.send(msg); } catch (e) {}
+        }
+      });
     }
 
     function destroyPeer() {
-      if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
-      hostConn = null; guests = [];
+      if (peer) {
+        try { peer.destroy(); } catch (e) {}
+        peer = null;
+      }
+      hostConn = null;
+      guests = [];
     }
 
     function scheduleRetry() {
@@ -1520,7 +1634,8 @@
       const cloned = cloneModel(playerModelTemplate);
       if (cloned) {
         tintClone(cloned, hue);
-        root = new _T.Group(); root.add(cloned);
+        root = new _T.Group();
+        root.add(cloned);
         if (playerModelIdleClip) {
           try {
             mixer = new _T.AnimationMixer(cloned);
@@ -1528,7 +1643,8 @@
           } catch (e) { mixer = null; }
         }
       } else {
-        rig = buildVRig(); root = rig.root;
+        rig = buildVRig();
+        root = rig.root;
         root.traverse(o => {
           if (o.isMesh && o.material) {
             o.material = o.material.clone();
@@ -1538,22 +1654,35 @@
       }
 
       const label = makeLabel(data.nick, data.title, '#fff5d2', !!data.isHost);
-      label.position.y = 2.4; root.add(label);
+      label.position.y = 2.4;
+      root.add(label);
 
       root.position.set(data.x, data.y, data.z);
       root.rotation.y = data.rot;
       scene.add(root);
 
-      remoteAvatars.set(id, { root, rig, mixer, phase: 0, isHost: !!data.isHost, bubble: null, bubbleTimer: null });
+      remoteAvatars.set(id, {
+        root, rig, mixer, phase: 0,
+        isHost: !!data.isHost,
+        bubble: null, bubbleTimer: null
+      });
     }
 
     function removeRemotePlayer(id) {
       const av = remoteAvatars.get(id);
       if (!av) return;
-      if (av.mixer) { try { av.mixer.stopAllAction(); } catch (e) {} }
-      if (av.bubble) { try { av.bubble.material.map.dispose(); av.bubble.material.dispose(); } catch(e){} }
+      if (av.mixer) {
+        try { av.mixer.stopAllAction(); } catch (e) {}
+      }
+      if (av.bubble) {
+        try {
+          av.root.remove(av.bubble);
+          disposeSprite(av.bubble);
+        } catch (e) {}
+      }
       clearTimeout(av.bubbleTimer);
       scene.remove(av.root);
+      disposeObject(av.root);
       remoteAvatars.delete(id);
       updateOnlineCount();
     }
@@ -1608,11 +1737,14 @@
         div.textContent = '· ' + msg.text;
       } else {
         const who = document.createElement('span');
-        who.className = 'who'; who.textContent = msg.nick || 'Anon';
+        who.className = 'who';
+        who.textContent = msg.nick || 'Anon';
         div.appendChild(who);
         if (msg.title) {
           const t = document.createElement('span');
-          t.className = 'title'; t.textContent = msg.title; div.appendChild(t);
+          t.className = 'title';
+          t.textContent = msg.title;
+          div.appendChild(t);
         }
         div.appendChild(document.createTextNode(': ' + (msg.text || '')));
       }
@@ -1629,7 +1761,10 @@
       if (!text) return;
       input.value = '';
 
-      const msg = { nick: myUser.nick, title: myUser.title, text };
+      const msg = {
+        nick: myUser.nick, title: myUser.title, text,
+        fromId: myId
+      };
       appendChat(msg);
       chatHistory.push(msg);
       if (chatHistory.length > MAX_CHAT) chatHistory.shift();
@@ -1643,8 +1778,10 @@
     }
 
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
-      else if (e.key === 'Escape') e.target.blur();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendChat();
+      } else if (e.key === 'Escape') e.target.blur();
     });
 
     /* ============================================================
@@ -1676,12 +1813,20 @@
           adminKeys.length = 0;
           toggleAdminPanel();
         }
-      } else adminKeys.length = 0;
+      } else {
+        adminKeys.length = 0;
+      }
+
+      if (e.key === 'Escape' && adminPanelOpen) {
+        toggleAdminPanel(false);
+      }
     });
 
     function adminSystemMsg(hostText, guestText) {
       appendChat({ system: true, text: 'Admin: ' + hostText });
-      if (guestText) broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
+      if (guestText) {
+        broadcastToGuests({ type: 'chat', nick: 'ADMIN', title: 'Server', text: guestText });
+      }
     }
 
     function adminAction(action) {
@@ -1698,7 +1843,10 @@
           break;
         }
         case 'remove-clark': {
-          if (!clarks.length) { appendChat({ system: true, text: 'Admin: no Clarks to remove.' }); return; }
+          if (!clarks.length) {
+            appendChat({ system: true, text: 'Admin: no Clarks to remove.' });
+            return;
+          }
           removeLastClark();
           adminSystemMsg('Clark removed (' + clarks.length + ' remaining).', 'A Clark has been removed.');
           break;
@@ -1716,11 +1864,13 @@
         }
         case 'teleport-clark': {
           if (!clarks.length) spawnClark(vPos.x + 3, vPos.z + 3);
-          else clarks.forEach((c, i) => {
-            const ang = (i / clarks.length) * Math.PI * 2;
-            c.pos.set(vPos.x + Math.cos(ang) * 3, 0, vPos.z + Math.sin(ang) * 3);
-            c.vel.set(0, 0, 0);
-          });
+          else {
+            clarks.forEach((c, i) => {
+              const ang = (i / clarks.length) * Math.PI * 2;
+              c.pos.set(vPos.x + Math.cos(ang) * 3, 0, vPos.z + Math.sin(ang) * 3);
+              c.vel.set(0, 0, 0);
+            });
+          }
           adminSystemMsg('Clarks teleported next to you.', null);
           break;
         }
@@ -1750,11 +1900,18 @@
           allPlayers.clear();
           remotePlayers.clear();
           clearAllAvatars();
+          allPlayers.set(myId, {
+            nick: myUser.nick, title: myUser.title,
+            x: vPos.x, y: vPos.y, z: vPos.z, rot: vHeading.y,
+            spd: holding ? MOVE_SPEED : 0, isHost: true,
+          });
           appendChat({ system: true, text: 'Admin: all guests were kicked.' });
           updateOnlineCount();
           break;
         }
-        case 'close': toggleAdminPanel(false); break;
+        case 'close':
+          toggleAdminPanel(false);
+          break;
       }
       updateClarkCountUI();
     }
@@ -1764,14 +1921,24 @@
        ============================================================ */
     let started = false;
 
+    function updateLocalLabel() {
+      if (localLabelSprite) {
+        viewerVis.remove(localLabelSprite);
+        disposeSprite(localLabelSprite);
+        localLabelSprite = null;
+      }
+      if (!myUser) return;
+      const isHost = role === 'host';
+      localLabelSprite = makeLabel(myUser.nick, myUser.title, isHost ? '#e0c86a' : '#fff5d2', isHost);
+      viewerVis.add(localLabelSprite);
+    }
+
     function startGame(nick, title) {
       if (started) return;
       started = true;
 
-      myUser = { nick, title }; joined = true;
-
-      localLabelSprite = makeLabel(nick, title, '#e0c86a', true);
-      viewerVis.add(localLabelSprite);
+      myUser = { nick, title };
+      joined = true;
 
       document.getElementById('hud-name').textContent = nick;
       document.getElementById('hud-title').textContent = title;
@@ -1814,7 +1981,9 @@
       if (!joined) return;
       if (e.button !== 0) return;
       if (isInteractiveElement(e.target)) return;
-      holding = true; lastX = e.clientX; lastY = e.clientY;
+      holding = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
       resumeAudio();
     });
     window.addEventListener('mouseup', () => { holding = false; });
@@ -1824,10 +1993,11 @@
       if (!joined || !holding) return;
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
-      lastX = e.clientX; lastY = e.clientY;
-      tYaw   -= dx * 0.005;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      tYaw -= dx * 0.005;
       tPitch -= dy * 0.004;
-      tPitch  = C(tPitch, -0.9, 1.2);
+      tPitch = C(tPitch, -0.9, 1.2);
     });
 
     cv.addEventListener('wheel', (e) => {
@@ -1846,12 +2016,12 @@
     window.addEventListener('resize', resize);
 
     /* ============================================================
-       CLARK PHYSICS (HOST ONLY) - STATE MACHINE & STEERING
+       CLARK PHYSICS (HOST ONLY)
        ============================================================ */
     function getNearestTarget(x, z) {
       let bestX = vPos.x, bestZ = vPos.z;
       let minDist = Infinity;
-      
+
       if (role === 'host') {
         allPlayers.forEach(p => {
           const d = Math.hypot(p.x - x, p.z - z);
@@ -1868,10 +2038,9 @@
     function updateClarkPhysics(c, dt) {
       const target = getNearestTarget(c.pos.x, c.pos.z);
       const distToTarget = target.dist;
-      
+
       c.stateTimer -= dt;
 
-      // Determine AI State
       if (distToTarget < 40) {
         c.state = 'hunt';
       } else {
@@ -1884,15 +2053,13 @@
       if (c.state === 'hunt') {
         desiredX = target.x;
         desiredZ = target.z;
-        
-        // Sneak up logic
+
         if (distToTarget < 15 && distToTarget > 4) {
-          currentMaxSpeed = MON_MAXSPD * 0.35; // Creep slowly
+          currentMaxSpeed = MON_MAXSPD * 0.35;
         } else if (distToTarget <= 4) {
-          currentMaxSpeed = MON_MAXSPD * 1.6; // Lunge when close
+          currentMaxSpeed = MON_MAXSPD * 1.6;
         }
       } else {
-        // Wander logic
         if (c.stateTimer <= 0 || Math.hypot(c.wanderTarget.x - c.pos.x, c.wanderTarget.z - c.pos.z) < 2) {
           c.stateTimer = 3 + Math.random() * 4;
           c.wanderTarget.set(
@@ -1900,9 +2067,8 @@
             0,
             c.pos.z + (Math.random() - 0.5) * 30
           );
-          // Keep in map bounds
-          c.wanderTarget.x = C(c.wanderTarget.x, -MS/2 + 5, MS/2 - 5);
-          c.wanderTarget.z = C(c.wanderTarget.z, -MS/2 + 5, MS/2 - 5);
+          c.wanderTarget.x = C(c.wanderTarget.x, -MS / 2 + 5, MS / 2 - 5);
+          c.wanderTarget.z = C(c.wanderTarget.z, -MS / 2 + 5, MS / 2 - 5);
         }
         desiredX = c.wanderTarget.x;
         desiredZ = c.wanderTarget.z;
@@ -1912,25 +2078,24 @@
       const pdz = desiredZ - c.pos.z;
       const pd = Math.hypot(pdx, pdz) || 1;
 
-      // Weave / Wander offset
       c.wanderAngle += (Math.random() - 0.5) * dt * 4;
       const wx = Math.cos(c.wanderAngle) * (c.state === 'hunt' ? 0.3 : 0.8);
       const wz = Math.sin(c.wanderAngle) * (c.state === 'hunt' ? 0.3 : 0.8);
 
-      // Apply steering force
       c.vel.x += ((pdx / pd) + wx) * MON_ACCEL * dt;
       c.vel.z += ((pdz / pd) + wz) * MON_ACCEL * dt;
 
       const fr = Math.exp(-MON_FRICTION * dt);
-      c.vel.x *= fr; c.vel.z *= fr;
+      c.vel.x *= fr;
+      c.vel.z *= fr;
 
       const mspd = Math.hypot(c.vel.x, c.vel.z);
       if (mspd > currentMaxSpeed) {
         const kk = currentMaxSpeed / mspd;
-        c.vel.x *= kk; c.vel.z *= kk;
+        c.vel.x *= kk;
+        c.vel.z *= kk;
       }
 
-      // Sub-stepping to prevent tunneling & safe zone entry
       const dist = mspd * dt;
       const steps = Math.ceil(dist / 0.2) || 1;
       const stepDt = dt / steps;
@@ -1942,26 +2107,25 @@
         c.pos.z += c.vel.z * stepDt;
         resolve(c.pos, 0.6, c.vel);
 
-        // Check if resolve pushed us back (indicating a wall hit)
         if (Math.hypot(c.pos.x - oldX, c.pos.z - oldZ) < Math.abs(mspd * stepDt) * 0.5) {
           hitWall = true;
         }
 
-        // Safe Zone constraint
         const dToCenter = Math.hypot(c.pos.x, c.pos.z);
         if (dToCenter < SAFE_RADIUS) {
           const nx = c.pos.x / (dToCenter || 1);
           const nz = c.pos.z / (dToCenter || 1);
           c.pos.x = nx * SAFE_RADIUS;
           c.pos.z = nz * SAFE_RADIUS;
-          c.vel.x = 0; c.vel.z = 0;
+          // bounce outward instead of zeroing completely
+          c.vel.x = nx * Math.abs(c.vel.x) * 0.6;
+          c.vel.z = nz * Math.abs(c.vel.z) * 0.6;
         }
       }
 
-      // If they hit a wall, steer away to unstick
       if (hitWall) {
         c.wanderAngle += Math.PI + (Math.random() - 0.5);
-        if (c.state === 'wander') c.stateTimer = 0; // Force new target next frame
+        if (c.state === 'wander') c.stateTimer = 0;
       }
 
       if (mspd > 0.5) {
@@ -1977,7 +2141,7 @@
     function hostCheckClarkCatch() {
       if (role !== 'host' || clarkImmunity) return;
       if (!clarks.length) return;
-      
+
       const localSafe = Math.hypot(vPos.x, vPos.z) < SAFE_RADIUS;
       const caught = [];
 
@@ -1993,7 +2157,7 @@
       allPlayers.forEach((p, id) => {
         if (id === myId) return;
         if (Math.hypot(p.x, p.z) < SAFE_RADIUS) return;
-        
+
         const hit = clarks.some(c => Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 1.1);
         if (hit) {
           caught.push(id);
@@ -2004,7 +2168,11 @@
         }
       });
 
-      if (caught.length > 0) resetAllClarks();
+      if (caught.length > 0) {
+        resetAllClarks();
+        // force a tick so guests see the new positions quickly
+        sendHostTick();
+      }
     }
 
     /* ============================================================
@@ -2043,7 +2211,7 @@
           c.fallbackRig.armL.rotation.x = -s * 0.8;
           c.fallbackRig.armR.rotation.x = s * 0.8;
         }
-        
+
         if (c.mixer && entityModelWalkClip) {
           const act = c.mixer.clipAction(entityModelWalkClip);
           if (act) {
@@ -2071,16 +2239,20 @@
     let vWalk = 0;
 
     function step(dt) {
-      nTimer -= dt; if (nTimer <= 0) { nTimer = .15; refreshNear(); }
+      nTimer -= dt;
+      if (nTimer <= 0) {
+        nTimer = .15;
+        refreshNear();
+      }
 
       const k = 1 - Math.exp(-10 * dt);
-      oYaw   += (tYaw   - oYaw)   * k;
+      oYaw += (tYaw - oYaw) * k;
       oPitch += (tPitch - oPitch) * k;
-      oDist  += (tDist  - oDist)  * k;
+      oDist += (tDist - oDist) * k;
 
       const fx = -Math.sin(oYaw);
       const fz = -Math.cos(oYaw);
-      
+
       if (holding) {
         const dist = MOVE_SPEED * dt;
         const steps = Math.ceil(dist / 0.2) || 1;
@@ -2091,7 +2263,7 @@
           vPos.z += fz * MOVE_SPEED * stepDt;
           resolve(vPos, 0.4, null);
         }
-        
+
         vWalk += dt * MOVE_SPEED * 2.6;
         vHeading.y = Math.atan2(fx, fz);
       }
@@ -2100,8 +2272,10 @@
       viewer.rotation.y = vHeading.y;
       if (vRig) {
         const s = Math.sin(vWalk) * 0.9;
-        vRig.armL.rotation.x = s; vRig.armR.rotation.x = -s;
-        vRig.legL.rotation.x = -s; vRig.legR.rotation.x = s;
+        vRig.armL.rotation.x = s;
+        vRig.armR.rotation.x = -s;
+        vRig.legL.rotation.x = -s;
+        vRig.legR.rotation.x = s;
       }
       if (vMix) vMix.update(dt);
 
