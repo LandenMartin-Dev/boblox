@@ -1,858 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Boblox</title>
+<meta charset="UTF-8">
+<title>LawOS</title>
 <style>
-  /* ============ THEME (muted orange) ============ */
-  :root {
-    --orange:    #c9752e;
-    --orange-lt: #e0a06a;
-    --orange-dk: #9a5414;
-    --bg:        #121213;
-    --panel:     #1b1c1e;
-    --panel-2:   #25262a;
-    --line:      #313338;
-    --text:      #f1f1f2;
-    --muted:     #9a9fa5;
-  }
+  /* Load the classic DOS font */
+  @import url('https://fonts.cdnfonts.com/css/perfect-dos-vga-437');
 
-  *, *::before, *::after { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-
-  html, body { min-height: 100%; }
-
-  body {
+  html, body {
     margin: 0;
-    font-family: "Segoe UI", "Builder Sans", system-ui, -apple-system, Roboto, sans-serif;
-    color: var(--text);
-    background-color: var(--bg);
-    background-image:
-      radial-gradient(900px 520px at 12% -12%, rgba(201,117,46,.16), transparent 60%),
-      radial-gradient(900px 620px at 92% -5%,  rgba(180,100,35,.10), transparent 55%);
-    background-attachment: fixed;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ============ FLOATING BACKGROUND BLOCKS ============ */
-  .bg-blocks {
-    position: fixed; inset: 0; overflow: hidden;
-    pointer-events: none; z-index: 0;
-  }
-  .bg-blocks span {
-    position: absolute;
-    display: block;
-    border-radius: 16px;
-    background: linear-gradient(140deg, rgba(210,150,90,.85), rgba(170,100,40,.15));
-    animation: drift linear infinite;
-  }
-  @keyframes drift {
-    from { transform: translateY(0) rotate(0deg); }
-    to   { transform: translateY(-130vh) rotate(260deg); }
-  }
-
-  /* ============ SHARED BITS ============ */
-  .logo-mark { width: 38px; height: 38px; display: block; flex: none; }
-
-  .brand {
-    display: flex; align-items: center; gap: 10px; justify-content: center;
-  }
-  .brand h1 {
-    margin: 0;
-    font-size: 36px;
-    font-weight: 900;
-    letter-spacing: -1.2px;
-    background: linear-gradient(180deg, #e0a06a, #b9661f);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-  .brand.small h1 { font-size: 22px; letter-spacing: -.6px; }
-  .brand.small .logo-mark { width: 28px; height: 28px; }
-
-  /* ============ NAME SCREEN ============ */
-  .auth-wrap {
-    position: relative; z-index: 1;
-    min-height: 100vh;
-    display: grid; place-items: center;
-    padding: 28px 20px;
-  }
-
-  .auth-card {
-    position: relative;
-    width: min(420px, 100%);
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 30px 28px 24px;
-    box-shadow: 0 26px 70px rgba(0,0,0,.65), 0 0 60px rgba(201,117,46,.05);
-  }
-  .auth-card::before {
-    content: "";
-    position: absolute; top: -1px; left: -1px; right: -1px; height: 4px;
-    border-radius: 18px 18px 0 0;
-    background: linear-gradient(90deg, #a85514, #d89a5c, #a85514);
-    background-size: 200% 100%;
-    animation: slide 4s linear infinite;
-  }
-  @keyframes slide { to { background-position: 200% 0; } }
-
-  /* ============ SAFETY WARNING ============ */
-  .safety-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 16px 0 6px;
-    padding: 10px 12px;
-    border-radius: 9px;
-    border: 1px solid rgba(201,117,46,.4);
-    background: rgba(201,117,46,.10);
-    color: var(--orange-lt);
-    font-size: 12.5px;
-    font-weight: 600;
-    line-height: 1.45;
-    text-align: left;
-  }
-  .safety-note .safety-icon {
-    flex: none;
-    font-size: 14px;
-    line-height: 1.3;
-  }
-
-  .auth-card label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 14px 0 6px;
-  }
-
-  .auth-card input {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 9px;
-    border: 1px solid var(--line);
-    background: #101112;
-    color: var(--text);
-    font: inherit;
-    font-size: 15px;
-    outline: none;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .auth-card input::placeholder { color: #61666c; }
-  .auth-card input:focus {
-    border-color: var(--orange);
-    box-shadow: 0 0 0 3px rgba(201,117,46,.16);
-  }
-
-  .btn-primary {
-    width: 100%;
-    margin-top: 22px;
-    padding: 13px;
-    border: none;
-    border-radius: 9px;
-    background: linear-gradient(180deg, #d99552, #b9661f);
-    color: #201205;
-    font: inherit;
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: .4px;
-    cursor: pointer;
-    transition: filter .15s, transform .08s;
-  }
-  .btn-primary:hover  { filter: brightness(1.07); }
-  .btn-primary:active { transform: translateY(1px); }
-
-  .msg {
-    margin-top: 16px;
-    min-height: 18px;
-    font-size: 13px;
-    font-weight: 600;
-    text-align: center;
-    line-height: 1.4;
-  }
-  .msg.error { color: #ff6b5e; }
-  .msg.ok    { color: #57d18a; }
-
-  /* ============ HOME SCREEN ============ */
-  .home { position: relative; z-index: 1; min-height: 100vh; }
-
-  .topbar {
-    position: sticky; top: 0; z-index: 10;
-    display: flex; align-items: center; gap: 18px;
-    padding: 10px 20px;
-    background: rgba(20,21,23,.92);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
-  }
-  .topbar .brand { justify-content: flex-start; }
-
-  .user-chip {
-    margin-left: auto;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .avatar {
-    width: 34px; height: 34px;
-    display: grid; place-items: center;
-    border-radius: 10px;
-    background: linear-gradient(160deg, #d99552, #b35c14);
-    color: #201205;
-    font-weight: 900;
-    font-size: 16px;
-    box-shadow: 0 4px 14px rgba(201,117,46,.26);
-  }
-  #navUser { font-weight: 700; font-size: 14px; }
-
-  .btn-ghost {
-    padding: 8px 14px;
-    border-radius: 9px;
-    border: 1px solid var(--line);
-    background: var(--panel-2);
-    color: var(--text);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: .15s;
-  }
-  .btn-ghost:hover {
-    border-color: var(--orange);
-    color: var(--orange-lt);
-  }
-
-  .content {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 26px 22px 70px;
-  }
-
-  .hero {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
-    padding: 34px 32px;
-    background: linear-gradient(120deg, #d59a5c 0%, #b9661f 55%, #8a4810 100%);
-    box-shadow: 0 18px 44px rgba(138,72,16,.24);
-  }
-  .hero::after {
-    content: "";
-    position: absolute; right: -50px; top: -60px;
-    width: 240px; height: 240px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.10);
-  }
-  .hero::before {
-    content: "";
-    position: absolute; right: 90px; bottom: -90px;
-    width: 180px; height: 180px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.07);
-  }
-  .hero h2 {
-    position: relative;
-    margin: 0 0 8px;
-    font-size: 30px;
-    letter-spacing: -.6px;
-    color: #2a1a08;
-  }
-  .hero p {
-    position: relative;
-    margin: 0 0 20px;
-    max-width: 520px;
-    font-size: 15px;
-    font-weight: 600;
-    color: rgba(42,26,8,.76);
-  }
-  .btn-hero {
-    position: relative;
-    padding: 12px 26px;
-    border: none;
-    border-radius: 10px;
-    background: #201205;
-    color: #d89a5c;
-    font: inherit;
-    font-size: 15px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform .1s, background .15s;
-  }
-  .btn-hero:hover  { background: #311c08; }
-  .btn-hero:active { transform: translateY(1px); }
-
-  .section-head {
-    display: flex; align-items: baseline; gap: 12px;
-    margin: 34px 0 16px;
-  }
-  .section-head h3 { margin: 0; font-size: 20px; letter-spacing: -.3px; }
-  .muted { color: var(--muted); font-size: 13px; }
-
-  .worlds {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-    gap: 16px;
-  }
-
-  .world-card {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 13px;
-    overflow: hidden;
-    transition: transform .16s, border-color .16s, box-shadow .16s;
-  }
-  .world-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--orange);
-    box-shadow: 0 14px 30px rgba(138,72,16,.22);
-  }
-
-  /* ---------- Thumbnail ---------- */
-  .thumb {
-    position: relative;
-    height: 112px;
-    overflow: hidden;
-    display: grid;
-    place-items: center;
-    font-size: 40px;
-    font-weight: 900;
-    color: rgba(32,18,5,.82);
-    user-select: none;
-  }
-  .thumb-initial { position: relative; z-index: 0; }
-  .thumb img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
-    z-index: 1;
+    background: #000;
   }
 
-  .world-info { padding: 11px 13px 15px; }
-  .world-info h4 {
-    margin: 0 0 3px;
-    font-size: 14px;
-    letter-spacing: -.1px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .world-info p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  .empty {
-    color: var(--muted);
-    font-size: 14px;
-    padding: 18px 0;
-    line-height: 1.6;
-  }
-  .empty code {
-    background: #22242a;
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    padding: 1px 5px;
-    font-size: 12px;
+  /* Hide screen while the font loads to avoid a text flash */
+  #screen {
+    padding: 20px;
+    font-family: 'Perfect DOS VGA 437', 'Courier New', Courier, monospace;
+    font-size: 24px; 
+    line-height: 1.2;
+    color: #a5a5a5; 
+    overflow: hidden;
+    
+    /* Kill anti-aliasing for that crisp bitmap look */
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+    letter-spacing: 1px;
+    visibility: hidden; 
+    opacity: 0;
   }
 
-  /* ============ RESPONSIVE ============ */
-  @media (max-width: 720px) {
-    #navUser { display: none; }
-    .hero h2 { font-size: 23px; }
-    .hero { padding: 26px 22px; }
-    .worlds { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-    .thumb { height: 92px; font-size: 34px; }
+  /* Reveal once the font is ready */
+  body.loaded #screen {
+    visibility: visible;
+    opacity: 1;
   }
 
-  /* ============ REDUCED MOTION ============ */
-  @media (prefers-reduced-motion: reduce) {
-    .bg-blocks { display: none; }
-    .bg-blocks span,
-    .auth-card::before { animation: none; }
+  .cursor {
+    display: inline-block;
+    /* Underscore cursor style */
+    width: 0.5em;       
+    height: 0.08em;     
+    margin-left: 2px;
+    background: #a5a5a5;
+    animation: blink 1s steps(1) infinite;
+    
+    /* Keep cursor sharp while the rest is slightly blurred */
+    filter: blur(0px);  
+    
+    vertical-align: baseline;
+    position: relative;
+    bottom: -0.1em;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
   }
 </style>
 </head>
 <body>
+  <!-- All on one line to stop weird spacing issues -->
+  <div id="screen"><span id="history">Welcome to LawOS!<br></span><span>&gt;&gt;&gt; </span><span id="current-input"></span><span class="cursor"></span></div>
 
-<div class="bg-blocks" id="bgBlocks" aria-hidden="true"></div>
-
-<!-- ============================================================
-     NAME SCREEN (shown only when no username is saved)
-     ============================================================ -->
-<section class="auth-wrap" id="nameScreen">
-  <div class="auth-card">
-    <div class="brand">
-      <svg class="logo-mark" viewBox="0 0 100 100" aria-hidden="true">
-        <polygon points="50,6 90,29 50,52 10,29" fill="#d89a5c"/>
-        <polygon points="90,29 90,71 50,94 50,52" fill="#b9661f"/>
-        <polygon points="10,29 50,52 50,94 10,71" fill="#8a4810"/>
-      </svg>
-      <h1>Boblox</h1>
-    </div>
-
-    <p class="safety-note" role="note">
-      <span class="safety-icon" aria-hidden="true">⚠️</span>
-      <span>Pick any name you like — just <strong>don't</strong> use your real one.</span>
-    </p>
-
-    <form id="nameForm" novalidate>
-      <label for="nameInput">Username</label>
-      <input id="nameInput" type="text" placeholder="e.g. BlockyBuilder"
-             maxlength="20" autocapitalize="none" spellcheck="false" autocomplete="off" />
-
-      <button class="btn-primary" type="submit">Continue</button>
-    </form>
-
-    <div class="msg" id="authMsg" role="status" aria-live="polite"></div>
-  </div>
-</section>
-
-<!-- ============================================================
-     HOME SCREEN
-     ============================================================ -->
-<section class="home" id="homeScreen" hidden>
-  <header class="topbar">
-    <div class="brand small">
-      <svg class="logo-mark" viewBox="0 0 100 100" aria-hidden="true">
-        <polygon points="50,6 90,29 50,52 10,29" fill="#d89a5c"/>
-        <polygon points="90,29 90,71 50,94 50,52" fill="#b9661f"/>
-        <polygon points="10,29 50,52 50,94 10,71" fill="#8a4810"/>
-      </svg>
-      <h1>Boblox</h1>
-    </div>
-
-    <div class="user-chip">
-      <div class="avatar" id="navAvatar">E</div>
-      <span id="navUser">Explorer</span>
-      <button class="btn-ghost" id="changeNameBtn" type="button">Change Name</button>
-    </div>
-  </header>
-
-  <main class="content">
-    <section class="hero" id="heroPanel">
-      <h2>Welcome to Boblox!</h2>
-      <p>Choose a world from the list below.</p>
-      <button class="btn-hero" id="okBtn" type="button">OK</button>
-    </section>
-
-    <div class="section-head">
-      <h3>Worlds</h3>
-    </div>
-
-    <div class="worlds" id="worlds"></div>
-  </main>
-</section>
-
-<script>
-(function () {
-  'use strict';
-
-  /* ============================================================
-     CONSTANTS
-     ============================================================ */
-  const NAME_KEY       = 'boblox.username';
-  const WELCOME_PREFIX = 'boblox.welcome.';
-  const WORDS_DIR      = 'words';
-  const FETCH_TIMEOUT  = 10000; // ms
-  const NAME_RE        = /^[A-Za-z0-9_]{3,20}$/;
-
-  const $ = (id) => document.getElementById(id);
-
-  /* ============================================================
-     SAFE STORAGE (private mode / disabled cookies can throw)
-     ============================================================ */
-  const store = {
-    get(key) {
-      try { return window.localStorage.getItem(key); }
-      catch (err) { return null; }
-    },
-    set(key, value) {
-      try { window.localStorage.setItem(key, value); return true; }
-      catch (err) { return false; }
-    },
-    remove(key) {
-      try { window.localStorage.removeItem(key); }
-      catch (err) { /* ignore */ }
-    }
-  };
-
-  /* ============================================================
-     ELEMENTS
-     ============================================================ */
-  const nameScreen = $('nameScreen');
-  const homeScreen = $('homeScreen');
-  const authMsg    = $('authMsg');
-  const nameForm   = $('nameForm');
-  const nameInput  = $('nameInput');
-  const heroPanel  = $('heroPanel');
-  const worldsEl   = $('worlds');
-
-  /* ============================================================
-     NAME MESSAGES
-     ============================================================ */
-  function setMsg(text, type) {
-    authMsg.textContent = text || '';
-    authMsg.className = 'msg' + (type ? ' ' + type : '');
-  }
-
-  /* ============================================================
-     SCREEN SWITCHING
-     ============================================================ */
-  function enterHome(username) {
-    const name = String(username || '').trim() || 'Explorer';
-    const key  = name.toLowerCase();
-
-    $('navUser').textContent   = name;
-    $('navAvatar').textContent = name.charAt(0).toUpperCase();
-
-    // Welcome banner stays hidden for this name once dismissed.
-    heroPanel.hidden = store.get(WELCOME_PREFIX + key) === '1';
-
-    nameScreen.hidden = true;
-    homeScreen.hidden = false;
-    window.scrollTo(0, 0);
-  }
-
-  function showNameScreen() {
-    homeScreen.hidden = true;
-    nameScreen.hidden = false;
-
-    nameForm.reset();
-    const saved = store.get(NAME_KEY);
-    nameInput.value = saved || '';
-    setMsg('');
-  }
-
-  /* ============================================================
-     NAME FORM
-     ============================================================ */
-  nameForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    const username = nameInput.value.trim();
-
-    if (!NAME_RE.test(username)) {
-      return setMsg('Username must be 3-20 characters (letters, numbers, underscores).', 'error');
-    }
-    if (!store.set(NAME_KEY, username)) {
-      return setMsg('Could not save your username: browser storage is blocked or full.', 'error');
-    }
-
-    setMsg('');
-    enterHome(username);
-  });
-
-  /* ============================================================
-     CHANGE NAME
-     ============================================================ */
-  $('changeNameBtn').addEventListener('click', () => {
-    store.remove(NAME_KEY);
-    showNameScreen();
-    nameInput.focus();
-  });
-
-  /* ============================================================
-     OK BUTTON: hide banner for good
-     ============================================================ */
-  $('okBtn').addEventListener('click', () => {
-    heroPanel.hidden = true;
-    const name = store.get(NAME_KEY);
-    if (name) store.set(WELCOME_PREFIX + name.toLowerCase(), '1');
-  });
-
-  /* ============================================================
-     URL HELPERS
-
-     Every segment is decoded first, then validated, then encoded
-     exactly once. This keeps already-encoded paths from being
-     double-encoded and blocks ".." hidden behind percent-escapes.
-     ============================================================ */
-  function decodeSegment(segment) {
-    try { return decodeURIComponent(segment); }
-    catch (err) { return segment; }
-  }
-
-  function safeSegments(path) {
-    return String(path == null ? '' : path)
-      .split('/')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-      .map(decodeSegment)                            // decode first ...
-      .filter((s) => s && s !== '.' && s !== '..')   // ... then drop traversal
-      .map((s) => encodeURIComponent(s));            // ... then encode once
-  }
-
-  function joinUrl(...segments) {
-    return segments
-      .reduce((parts, part) => parts.concat(safeSegments(part)), [])
-      .join('/');
-  }
-
-  async function fetchJson(url) {
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), FETCH_TIMEOUT) : null;
-
-    try {
-      const res = await fetch(url, {
-        cache: 'no-store',
-        signal: controller ? controller.signal : undefined
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return await res.json();
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
-
-  /* ============================================================
-     WORLD LOADER
-
-     words/pointer.json is a list of folder names.
-     Each folder may contain a config.json:
-
-       { "entrypoint": "index.html", "thumbnail": "image.png" }
-
-     entrypoint is required by spec, but if config.json is missing
-     or malformed we fall back to "index.html".
-     thumbnail may be "auto" (thumbnail.png), "None" (no image),
-     an explicit path, { "path": "..." }, or omitted (no image).
-     ============================================================ */
-  const GRADS = [
-    ['#d89a5c', '#b9661f'],
-    ['#e0b27a', '#b96a22'],
-    ['#cf8f52', '#a85514'],
-    ['#dcae74', '#b06a24'],
-    ['#c98a5c', '#8a4810'],
-    ['#d6a05e', '#b35c14'],
-    ['#d9a768', '#a85316'],
-    ['#e2b988', '#b96f1f']
-  ];
-
-  function prettify(name) {
-    return String(name)
-      .replace(/[-_]+/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function normalizePointer(data) {
-    const out = [];
-    const push = (value) => {
-      if (typeof value === 'string' && value.trim()) {
-        out.push(value.trim());
-      } else if (value && typeof value === 'object' &&
-                 typeof value.name === 'string' && value.name.trim()) {
-        out.push(value.name.trim());
-      }
-    };
-
-    if (Array.isArray(data)) {
-      data.forEach(push);
-    } else if (typeof data === 'string') {
-      push(data);
-    } else if (data && typeof data === 'object') {
-      if (Array.isArray(data.words))             data.words.forEach(push);
-      else if (Array.isArray(data.interactives)) data.interactives.forEach(push);
-      else if (typeof data.pointer === 'string') push(data.pointer);
-      else if (typeof data.name === 'string')    push(data.name);
-      else Object.keys(data).forEach(push);
-    }
-
-    // Exact-match de-dupe: case-insensitive de-duping can hide real
-    // folders that only differ by case on case-sensitive servers.
-    const seen = new Set();
-    return out.filter((name) => {
-      if (seen.has(name)) return false;
-      seen.add(name);
-      return true;
+  <script>
+    // Wait for font to load before showing the terminal
+    document.fonts.ready.then(function() {
+      document.body.classList.add('loaded');
     });
-  }
 
-  function entrypointFromConfig(cfg) {
-    let entry = cfg && typeof cfg.entrypoint === 'string' ? cfg.entrypoint.trim() : '';
-    if (!entry || entry.toLowerCase() === 'auto') entry = 'index.html';
-    return entry;
-  }
+    const historyEl = document.getElementById('history');
+    const inputEl = document.getElementById('current-input');
+    
+    let currentText = '';
 
-  function thumbnailFromConfig(cfg, folderUrl) {
-    const thumb = cfg ? cfg.thumbnail : undefined;
-    let file = null;
-
-    if (typeof thumb === 'string') {
-      const trimmed = thumb.trim();
-      const lower   = trimmed.toLowerCase();
-      if (!trimmed || lower === 'none' || lower === 'null' || lower === 'false') return null;
-      file = (lower === 'auto') ? 'thumbnail.png' : trimmed;
-    } else if (thumb && typeof thumb === 'object' && typeof thumb.path === 'string') {
-      file = thumb.path.trim() || null;
-    }
-
-    return file ? joinUrl(folderUrl, file) : null;
-  }
-
-  // Resolve one folder into card data.
-  async function loadWorld(name) {
-    const folderUrl = joinUrl(WORDS_DIR, name);
-
-    let cfg = null;
-    try {
-      cfg = await fetchJson(joinUrl(folderUrl, 'config.json'));
-    } catch (err) {
-      cfg = null;
-    }
-    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) cfg = {};
-
-    return {
-      name:     name,
-      label:    prettify(name),
-      href:     joinUrl(folderUrl, entrypointFromConfig(cfg)),
-      thumbUrl: thumbnailFromConfig(cfg, folderUrl)
-    };
-  }
-
-  function buildCard(world, index) {
-    const card = document.createElement('a');
-    card.className = 'world-card';
-    card.href = world.href;
-    card.title = world.label;
-
-    const thumb = document.createElement('div');
-    thumb.className = 'thumb';
-    const [c1, c2] = GRADS[index % GRADS.length];
-    thumb.style.background = 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
-
-    const initial = document.createElement('span');
-    initial.className = 'thumb-initial';
-    initial.textContent = (world.label.charAt(0) || '?').toUpperCase();
-    thumb.appendChild(initial);
-
-    if (world.thumbUrl) {
-      const img = document.createElement('img');
-      img.alt = '';
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      // If the image is missing or blocked, drop it and keep the gradient.
-      img.addEventListener('error', () => img.remove());
-      img.src = world.thumbUrl;
-      thumb.appendChild(img);
-    }
-
-    const info = document.createElement('div');
-    info.className = 'world-info';
-
-    const h4 = document.createElement('h4');
-    h4.textContent = world.label;
-
-    const p = document.createElement('p');
-    p.textContent = world.name;
-
-    info.appendChild(h4);
-    info.appendChild(p);
-    card.appendChild(thumb);
-    card.appendChild(info);
-
-    return card;
-  }
-
-  function renderEmpty(fetchFailed) {
-    worldsEl.innerHTML = '';
-
-    const p = document.createElement('p');
-    p.className = 'empty';
-
-    if (fetchFailed) {
-      p.innerHTML = 'Could not load <code>words/pointer.json</code>.';
-      if (window.location.protocol === 'file:') {
-        p.innerHTML +=
-          ' Browsers block <code>fetch</code> on <code>file://</code> pages — serve this folder over HTTP ' +
-          '(for example <code>python -m http.server</code>) and reload.';
-      } else {
-        p.innerHTML += ' Check that the file exists and is served correctly.';
+    // Handle keyboard input
+    document.addEventListener('keydown', function(e) {
+      // Append normal characters (max 32 chars)
+      if (e.key.length === 1) {
+        if (currentText.length < 32) {
+          currentText += e.key;
+          inputEl.textContent = currentText;
+        }
+        e.preventDefault();
+      } 
+      // Backspace logic
+      else if (e.key === 'Backspace') {
+        currentText = currentText.slice(0, -1);
+        inputEl.textContent = currentText;
+        e.preventDefault();
+      } 
+      // Enter logic
+      else if (e.key === 'Enter') {
+        if (currentText.length > 0) {
+          // Echo the input and add a blank line
+          historyEl.innerHTML += `&gt;&gt;&gt; ${currentText}<br>${currentText}<br><br>`;
+          
+          // Reset the input
+          currentText = '';
+          inputEl.textContent = '';
+        }
+        e.preventDefault();
       }
-    } else {
-      p.innerHTML =
-        'No worlds found. Add folder names to <code>words/pointer.json</code> and give each folder a ' +
-        '<code>config.json</code> with an <code>entrypoint</code>.';
-    }
-
-    worldsEl.appendChild(p);
-  }
-
-  function render(worlds) {
-    worldsEl.innerHTML = '';
-
-    const frag = document.createDocumentFragment();
-    worlds.forEach((w, i) => frag.appendChild(buildCard(w, i)));
-    worldsEl.appendChild(frag);
-  }
-
-  async function loadWorlds() {
-    let names = [];
-    let fetchFailed = false;
-
-    try {
-      names = normalizePointer(await fetchJson(joinUrl(WORDS_DIR, 'pointer.json')));
-    } catch (err) {
-      fetchFailed = true;
-      names = [];
-    }
-
-    if (!names.length) {
-      renderEmpty(fetchFailed);
-      return;
-    }
-
-    const worlds = await Promise.all(names.map(loadWorld));
-    render(worlds);
-  }
-
-  /* ============================================================
-     DECORATIVE FLOATING BLOCKS
-     ============================================================ */
-  (function buildBackground() {
-    if (window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    const bg = $('bgBlocks');
-    for (let i = 0; i < 14; i++) {
-      const block = document.createElement('span');
-      const size = 24 + Math.random() * 72;
-      block.style.width  = size + 'px';
-      block.style.height = size + 'px';
-      block.style.left   = (Math.random() * 100) + '%';
-      block.style.bottom = (-140 - Math.random() * 260) + 'px';
-      block.style.opacity = (0.06 + Math.random() * 0.14).toFixed(2);
-      block.style.animationDuration = (18 + Math.random() * 22) + 's';
-      block.style.animationDelay = (-Math.random() * 34) + 's';
-      bg.appendChild(block);
-    }
-  })();
-
-  /* ============================================================
-     BOOT
-     ============================================================ */
-  (function boot() {
-    const saved = (store.get(NAME_KEY) || '').trim();
-
-    if (saved) {
-      enterHome(saved);
-    } else {
-      showNameScreen();
-    }
-
-    loadWorlds();
-  })();
-
-})();
-</script>
+    });
+  </script>
 </body>
 </html>
